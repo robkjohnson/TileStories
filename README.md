@@ -127,43 +127,6 @@ Session state lives in memory on the server and resets on restart. Campaign data
 
 ---
 
-## Looking for testers
-
-We're looking for people to help test TileStories in real game sessions. If you run into bugs or have feedback, please [open an issue](../../issues) with:
-
-- What you were doing
-- What you expected to happen
-- What actually happened
-- Your OS and browser
-
-Especially interested in feedback on:
-- **Multiplayer stability** across different networks / devices
-- **Player device experience** on phones (iOS Safari, Android Chrome)
-- **Map painting** and tile system usability
-- **Session flow** — join → play → end
-
----
-
-## Contributing
-
-Pull requests are welcome. For larger changes, open an issue first to discuss the approach.
-
-```bash
-# Install deps
-npm install
-
-# Run in dev mode
-npm start
-
-# After making changes, verify the build still works
-npm run build
-npm run build:player
-```
-
-There are no automated tests yet — manual testing against the dev server is the current workflow.
-
----
-
 ## License
 
 MIT
