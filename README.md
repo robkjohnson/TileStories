@@ -1,6 +1,6 @@
 # TileStories — TTRPG Session Manager
 
-A local-first, browser-based session manager for tabletop roleplaying games. TileStories gives a Game Master a full toolkit for running hex-map campaigns — characters, events, storyboards, and real-time multiplayer sync — across three separate screens: the organizer, player devices, and a display/TV screen.
+A local-first, browser-based session manager for tabletop roleplaying games. TileStories gives a Game Master a full toolkit for running tile-map campaigns — characters, events, storyboards, and real-time multiplayer sync — across three separate screens: the organizer, player devices, and a display/TV screen.
 
 ---
 
