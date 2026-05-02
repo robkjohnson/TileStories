@@ -1,0 +1,94 @@
+.container { display: flex; flex-direction: column; gap: 4px; }
+
+/* Event row */
+.eventRow { border: 0.5px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; background: var(--bg-raised); }
+.eventHeader { display: flex; align-items: center; gap: 7px; padding: 8px 10px; cursor: pointer; user-select: none; transition: background 0.1s; }
+.eventHeader:hover { background: var(--bg-overlay); }
+.eventSteps { font-size: 14px; flex-shrink: 0; min-width: 24px; }
+.eventName { flex: 1; font-size: 12px; font-weight: 500; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.visBadge { font-size: 11px; flex-shrink: 0; }
+.firedBadge { font-size: 10px; background: rgba(200,169,110,0.2); color: var(--accent); border: 0.5px solid var(--accent-dim); border-radius: 8px; padding: 1px 6px; flex-shrink: 0; }
+.chevron { font-size: 9px; color: var(--text-muted); flex-shrink: 0; }
+.eventBody { border-top: 0.5px solid var(--border); padding: 8px; display: flex; flex-direction: column; gap: 8px; }
+.eventActions { display: flex; gap: 6px; }
+.fireBtn { flex: 1; padding: 6px; border-radius: var(--radius-sm); background: var(--accent); color: #1a1a1a; font-size: 12px; font-weight: 600; border: none; cursor: pointer; }
+.fireBtn:hover { opacity: 0.88; }
+.deleteBtn { padding: 6px 10px; border-radius: var(--radius-sm); border: 0.5px solid var(--danger); background: transparent; color: var(--danger); font-size: 12px; cursor: pointer; }
+
+/* Form */
+.form { display: flex; flex-direction: column; gap: 7px; padding: 8px; background: var(--bg-raised); border: 0.5px solid var(--border-strong); border-radius: var(--radius-sm); overflow: visible; }
+.nameInput { padding: 6px 8px; border-radius: var(--radius-sm); border: 0.5px solid var(--border-strong); background: var(--bg-overlay); color: var(--text-primary); font-size: 13px; font-weight: 500; }
+.nameInput:focus { outline: none; border-color: var(--accent); }
+.descInput { padding: 6px 8px; border-radius: var(--radius-sm); border: 0.5px solid var(--border-strong); background: var(--bg-overlay); color: var(--text-primary); font-size: 12px; resize: vertical; line-height: 1.4; }
+.descInput:focus { outline: none; border-color: var(--accent); }
+.traitInput { padding: 5px 8px; border-radius: var(--radius-sm); border: 0.5px solid var(--border-strong); background: var(--bg-overlay); color: var(--text-primary); font-size: 11px; }
+.formRow { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+.formLabel { font-size: 11px; color: var(--text-muted); white-space: nowrap; }
+.formActions { display: flex; gap: 6px; }
+.saveBtn { flex: 1; padding: 6px; border-radius: var(--radius-sm); background: var(--accent); color: #1a1a1a; font-size: 12px; font-weight: 600; border: none; cursor: pointer; }
+.saveBtn:disabled { opacity: 0.4; cursor: default; }
+.cancelBtn { padding: 6px 10px; border-radius: var(--radius-sm); border: 0.5px solid var(--border-strong); background: transparent; color: var(--text-muted); font-size: 12px; cursor: pointer; }
+
+/* Add button */
+.addBtn { width: 100%; padding: 6px; border-radius: var(--radius-sm); border: 0.5px dashed var(--border-strong); background: transparent; color: var(--text-muted); font-size: 11px; cursor: pointer; }
+.addBtn:hover { color: var(--accent); border-color: var(--accent-dim); }
+
+/* Steps */
+.stepsLabel { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-muted); }
+.stepsHint { font-weight: 400; text-transform: none; letter-spacing: 0; font-size: 10px; }
+
+/* Add step buttons */
+.addStepRow { display: flex; gap: 4px; flex-wrap: wrap; }
+.addStepBtn { padding: 4px 6px; border-radius: var(--radius-sm); border: 0.5px solid; background: transparent; font-size: 10px; cursor: pointer; white-space: nowrap; }
+.addStepBtn:hover { opacity: 0.7; }
+
+/* Step card */
+.stepCard { border: 0.5px solid var(--border); border-left: 3px solid; border-radius: var(--radius-sm); overflow: hidden; }
+.stepHeader { display: flex; align-items: center; gap: 6px; padding: 6px 8px; background: var(--bg-overlay); }
+.stepIcon { font-size: 14px; flex-shrink: 0; }
+.stepLabel { flex: 1; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; }
+.stepControls { display: flex; gap: 2px; }
+.stepMoveBtn { width: 20px; height: 20px; border-radius: 3px; border: 0.5px solid var(--border-strong); background: transparent; color: var(--text-muted); font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.stepMoveBtn:disabled { opacity: 0.3; cursor: default; }
+.stepMoveBtn:not(:disabled):hover { color: var(--accent); }
+.stepRemoveBtn { width: 20px; height: 20px; border-radius: 3px; border: none; background: transparent; color: var(--text-muted); font-size: 14px; cursor: pointer; }
+.stepRemoveBtn:hover { color: var(--danger); }
+.stepBody { padding: 8px; display: flex; flex-direction: column; gap: 6px; }
+.stepRow { display: flex; align-items: center; gap: 8px; font-size: 11px; }
+.stepRow label { color: var(--text-muted); white-space: nowrap; min-width: 56px; }
+.stepRow select { flex: 1; font-size: 11px; }
+.messageInput { width: 100%; padding: 6px 8px; border-radius: var(--radius-sm); border: 0.5px solid var(--border-strong); background: var(--bg-overlay); color: var(--text-primary); font-size: 12px; resize: vertical; line-height: 1.4; }
+.stepCheckLabel { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-secondary); cursor: pointer; }
+.stepCheckLabel input { accent-color: var(--accent); }
+
+/* Target buttons */
+.targetBtns { display: flex; gap: 3px; flex: 1; }
+.targetBtn { flex: 1; padding: 3px; border-radius: 3px; border: 0.5px solid var(--border-strong); background: transparent; color: var(--text-muted); font-size: 10px; cursor: pointer; text-align: center; }
+.targetBtn:hover { color: var(--text-primary); }
+.targetBtnActive { border-color: var(--accent); color: var(--accent); background: rgba(200,169,110,0.08); }
+
+/* Affected tiles */
+.affectedWrap { display: flex; flex-direction: column; gap: 5px; }
+.affectedList { display: flex; flex-wrap: wrap; gap: 4px; }
+.affectedChip { display: flex; align-items: center; gap: 3px; padding: 2px 6px; background: var(--bg-overlay); border: 0.5px solid var(--border-strong); border-radius: 8px; font-size: 11px; color: var(--text-secondary); }
+.affectedChip button { border: none; background: none; color: var(--text-muted); cursor: pointer; font-size: 13px; line-height: 1; padding: 0; }
+.affectedChip button:hover { color: var(--danger); }
+
+/* Portal picker */
+.portalPickerWrap { display: flex; flex-direction: column; gap: 4px; }
+.portalTileChip { padding: 2px 8px; background: rgba(122,90,181,0.15); border: 0.5px solid #7a5ab5; border-radius: 8px; font-size: 11px; color: #b09adb; }
+.addTileBtn { padding: 4px 8px; border-radius: var(--radius-sm); border: 0.5px solid var(--border-strong); background: transparent; color: var(--text-muted); font-size: 11px; cursor: pointer; }
+.addTileBtn:hover { color: var(--accent); border-color: var(--accent-dim); }
+.portalCancelBtn { padding: 4px 8px; border-radius: var(--radius-sm); border: 0.5px solid var(--danger); background: transparent; color: var(--danger); font-size: 11px; cursor: pointer; }
+.portalInputRow { display: flex; align-items: center; gap: 5px; }
+.portalCoordLabel { font-size: 10px; color: var(--text-muted); }
+.portalCoordInput { width: 48px; padding: 3px 4px; border-radius: 3px; border: 0.5px solid var(--border-strong); background: var(--bg-overlay); color: var(--text-primary); font-size: 12px; text-align: center; }
+.portalCoordInput:focus { outline: none; border-color: var(--accent); }
+
+/* Confirm fire dialog */
+.confirmFireDialog { background: var(--bg-raised); border: 1px solid var(--accent); border-radius: var(--radius-sm); padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+.confirmFireTitle { font-size: 12px; font-weight: 600; color: var(--accent); }
+.confirmFireName { font-size: 14px; font-weight: 700; color: var(--text-primary); }
+.confirmSteps { display: flex; flex-wrap: wrap; gap: 4px; }
+.confirmStep { padding: 2px 7px; background: var(--bg-overlay); border-radius: 8px; font-size: 11px; color: var(--text-secondary); }
+.confirmFireBtns { display: flex; gap: 6px; }

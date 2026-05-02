@@ -1,0 +1,70 @@
+.library { display: flex; flex-direction: column; gap: 8px; }
+.toolbar { display: flex; gap: 6px; }
+.search { flex: 1; font-size: 13px; }
+.addBtn { padding: 6px 12px; border-radius: var(--radius-sm); border: 0.5px solid var(--accent-dim); background: transparent; color: var(--accent); font-size: 12px; cursor: pointer; white-space: nowrap; }
+.addBtn:hover { background: var(--bg-overlay); }
+.filterRow { display: flex; gap: 4px; flex-wrap: wrap; }
+.filterBtn { padding: 3px 9px; border-radius: 20px; border: 0.5px solid var(--border); background: transparent; color: var(--text-muted); font-size: 11px; cursor: pointer; transition: all 0.1s; }
+.filterBtn:hover { color: var(--text-primary); }
+.filterActive { font-weight: 500; }
+.empty { font-size: 13px; color: var(--text-muted); font-style: italic; text-align: center; padding: 20px 0; }
+.hint { font-size: 12px; color: var(--text-muted); line-height: 1.5; margin-bottom: 6px; }
+
+/* Card */
+.card { background: var(--bg-raised); border: 0.5px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
+.cardHeader { display: flex; align-items: center; gap: 8px; padding: 9px 12px; cursor: pointer; user-select: none; transition: background 0.1s; }
+.cardHeader:hover { background: var(--bg-overlay); }
+.catIcon { font-size: 16px; flex-shrink: 0; }
+.cardInfo { flex: 1; min-width: 0; }
+.cardName { display: block; font-size: 13px; font-weight: 500; color: var(--text-primary); }
+.cardMeta { font-size: 11px; color: var(--text-muted); }
+.tagRow { display: flex; gap: 3px; flex-wrap: wrap; }
+.tag { padding: 1px 6px; border-radius: 8px; background: var(--bg-overlay); border: 0.5px solid var(--border-strong); font-size: 10px; color: var(--text-muted); }
+.chevron { font-size: 9px; color: var(--text-muted); flex-shrink: 0; }
+
+/* Editor */
+.editor { border-top: 0.5px solid var(--border); padding: 10px; display: flex; flex-direction: column; gap: 10px; max-width: 100%; overflow: hidden; }
+.editorRow { display: flex; gap: 8px; flex-wrap: wrap; max-width: 100%; }
+.editorField { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 0; }
+.editorField label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-muted); }
+.sectionDivider { font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--accent); padding: 4px 0; border-bottom: 0.5px solid var(--border); }
+
+/* Traits */
+.traitList { display: flex; flex-direction: column; gap: 5px; }
+.traitRow { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
+.traitName { flex: 1; min-width: 80px; font-size: 12px; }
+.traitDesc { flex: 2; min-width: 80px; font-size: 12px; }
+.removeInline { width: 20px; height: 20px; border-radius: 3px; color: var(--text-muted); font-size: 15px; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; transition: all 0.1s; }
+.removeInline:hover { color: var(--danger); background: rgba(194,90,74,0.1); }
+.addSmallBtn { align-self: flex-start; font-size: 11px; color: var(--accent); background: none; border: 0.5px solid var(--accent-dim); border-radius: 10px; padding: 2px 8px; cursor: pointer; }
+.addSmallBtn:hover { background: var(--bg-overlay); }
+
+/* Linked abilities */
+.linkedAbilities { display: flex; flex-direction: column; gap: 5px; }
+.linkedAbilityRow { display: flex; align-items: center; gap: 8px; padding: 6px 10px; background: var(--bg-overlay); border-radius: var(--radius-sm); border: 0.5px solid var(--border); }
+.linkedAbilityName { flex: 1; font-size: 12px; font-weight: 500; color: var(--text-primary); }
+.linkedAbilityCat { font-size: 10px; color: var(--text-muted); text-transform: capitalize; }
+.addAbilitySelect { font-size: 12px; }
+
+/* Delete */
+.deleteRow { display: flex; align-items: center; gap: 8px; padding-top: 8px; border-top: 0.5px solid var(--border); flex-wrap: wrap; }
+.deleteWarning { font-size: 12px; color: var(--danger); flex: 1; }
+.deleteBtn { font-size: 12px; color: var(--danger); background: none; border: none; cursor: pointer; }
+.deleteConfirmBtn { padding: 5px 12px; border-radius: var(--radius-sm); background: var(--danger); color: #fff; border: none; font-size: 12px; cursor: pointer; }
+.cancelBtn { padding: 5px 12px; border-radius: var(--radius-sm); border: 0.5px solid var(--border-strong); background: transparent; color: var(--text-secondary); font-size: 12px; cursor: pointer; }
+
+/* Item card (shared) */
+.itemCard { background: var(--bg-raised); border: 0.5px solid var(--border); border-left: 3px solid; border-radius: var(--radius-sm); padding: 9px 12px; display: flex; flex-direction: column; gap: 5px; }
+.itemCardCompact { padding: 6px 10px; }
+.itemCardHeader { display: flex; align-items: center; gap: 7px; }
+.itemIcon { font-size: 15px; flex-shrink: 0; }
+.itemCardInfo { flex: 1; display: flex; align-items: center; gap: 6px; min-width: 0; flex-wrap: wrap; }
+.itemCardName { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.itemQtyBadge { font-size: 11px; color: var(--text-muted); background: var(--bg-overlay); padding: 1px 5px; border-radius: 8px; }
+.itemCardRarity { font-size: 10px; font-weight: 500; }
+.transferBtn { padding: 3px 10px; border-radius: 10px; border: 0.5px solid var(--accent-dim); background: transparent; color: var(--accent); font-size: 11px; cursor: pointer; flex-shrink: 0; }
+.transferBtn:hover { background: var(--bg-overlay); }
+.itemCardDesc { font-size: 12px; color: var(--text-secondary); line-height: 1.5; }
+.itemCardStats { display: flex; flex-wrap: wrap; gap: 5px; }
+.itemStat { font-size: 11px; color: var(--text-muted); background: var(--bg-overlay); padding: 2px 6px; border-radius: 8px; border: 0.5px solid var(--border); }
+.itemNotes { font-size: 11px; color: var(--text-muted); font-style: italic; }

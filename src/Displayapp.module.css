@@ -1,0 +1,33 @@
+.display {
+  width: 100vw;
+  height: 100vh;
+  background: #0a0a0c;
+  overflow: hidden;
+  position: relative;
+}
+
+.idleScreen {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  color: rgba(255,255,255,0.15);
+}
+.idleHex { font-size: 80px; }
+.idleTitle { font-size: 28px; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; }
+.idleHint { font-size: 14px; }
+
+.mapContainer {
+  width: 100%;
+  height: 100%;
+}
+
+.storyboardDisplay {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+}

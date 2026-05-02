@@ -1,0 +1,190 @@
+.tabsWrap {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+.tabBar {
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  padding: 0 8px;
+  background: var(--bg-base);
+  border-bottom: 0.5px solid var(--border);
+  flex-shrink: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  height: 36px;
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  border-radius: 6px 6px 0 0;
+  border: 0.5px solid transparent;
+  border-bottom: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.1s, color 0.1s;
+  min-width: 80px;
+  position: relative;
+  top: 1px;
+}
+.tab:hover { background: var(--bg-raised); color: var(--text-secondary); }
+
+.tabActive {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  border-color: var(--border);
+  border-bottom-color: var(--bg-surface);
+}
+
+.tabName { flex: 1; }
+
+.tabSize {
+  font-size: 10px;
+  color: var(--text-muted);
+  opacity: 0.6;
+}
+
+.subBadge {
+  font-size: 9px;
+  background: rgba(200,169,110,0.15);
+  color: var(--accent);
+  border-radius: 8px;
+  padding: 1px 5px;
+  flex-shrink: 0;
+  font-weight: 600;
+}
+
+.tabEdit {
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1;
+  opacity: 0;
+  transition: opacity 0.1s, background 0.1s;
+}
+.tab:hover .tabEdit    { opacity: 1; }
+.subTab:hover .tabEdit { opacity: 1; }
+.tabEdit:hover { background: var(--bg-overlay); color: var(--accent); }
+
+.tabClose {
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1;
+  opacity: 0;
+  transition: opacity 0.1s, background 0.1s;
+}
+.tab:hover .tabClose    { opacity: 1; }
+.subTab:hover .tabClose { opacity: 1; }
+.tabClose:hover { background: var(--bg-overlay); color: var(--danger); }
+
+.renameInput {
+  background: transparent;
+  border: none;
+  border-bottom: 0.5px solid var(--accent);
+  border-radius: 0;
+  padding: 0 2px;
+  color: var(--text-primary);
+  font-size: 12px;
+  width: 100px;
+  outline: none;
+}
+
+.addTab {
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  color: var(--text-muted);
+  font-size: 12px;
+  cursor: pointer;
+  border-radius: 6px 6px 0 0;
+  transition: background 0.1s, color 0.1s;
+  white-space: nowrap;
+}
+.addTab:hover { background: var(--bg-raised); color: var(--accent); }
+
+/* ── Sub-map row ── */
+.subTabBar {
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  padding: 0 8px 0 10px;
+  background: var(--bg-base);
+  border-bottom: 0.5px solid var(--border);
+  height: 28px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  /* Slightly distinct background to signal "one level down" */
+  background: color-mix(in srgb, var(--bg-base) 80%, var(--bg-raised) 20%);
+}
+
+.subTabArrow {
+  display: flex;
+  align-items: center;
+  font-size: 12px;
+  color: var(--text-muted);
+  opacity: 0.5;
+  flex-shrink: 0;
+  padding-right: 4px;
+  user-select: none;
+}
+
+.subTab {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 8px;
+  border-radius: 5px 5px 0 0;
+  border: 0.5px solid transparent;
+  border-bottom: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 11px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.1s, color 0.1s;
+  position: relative;
+  top: 1px;
+}
+.subTab:hover { background: var(--bg-raised); color: var(--text-secondary); }
+
+.subTabActive {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  border-color: var(--border);
+  border-bottom-color: var(--bg-surface);
+}
+
+.subTabName { flex: 1; }
+
+.addSubTab {
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  color: var(--text-muted);
+  font-size: 11px;
+  cursor: pointer;
+  border-radius: 5px 5px 0 0;
+  transition: background 0.1s, color 0.1s;
+  white-space: nowrap;
+  opacity: 0.7;
+}
+.addSubTab:hover { background: var(--bg-raised); color: var(--accent); opacity: 1; }

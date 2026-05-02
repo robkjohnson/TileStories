@@ -1,0 +1,87 @@
+/* Modal overlay — full screen above map */
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  background: var(--bg-base);
+  display: flex;
+  flex-direction: column;
+}
+
+/* List view */
+.list { display: flex; flex-direction: column; gap: 8px; padding: 4px 0; }
+.createBtn { width: 100%; padding: 7px; border-radius: var(--radius-sm); border: 0.5px dashed var(--border-strong); background: transparent; color: var(--text-muted); font-size: 12px; cursor: pointer; }
+.createBtn:hover { color: var(--accent); border-color: var(--accent-dim); }
+.empty { font-size: 12px; color: var(--text-muted); font-style: italic; text-align: center; padding: 16px 0; }
+
+.listCard { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: var(--bg-raised); border: 0.5px solid var(--border); border-radius: var(--radius-sm); }
+.listThumb { width: 48px; height: 27px; border-radius: 3px; overflow: hidden; flex-shrink: 0; }
+.listThumb img { width: 100%; height: 100%; object-fit: cover; }
+.listInfo { flex: 1; min-width: 0; }
+.listName { display: block; font-size: 12px; font-weight: 500; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.listMeta { font-size: 10px; color: var(--text-muted); }
+.listActions { display: flex; gap: 4px; flex-shrink: 0; }
+.editBtn { padding: 3px 8px; border-radius: var(--radius-sm); border: 0.5px solid var(--accent-dim); background: transparent; color: var(--accent); font-size: 11px; cursor: pointer; }
+.editBtn:hover { background: var(--bg-overlay); }
+.broadcastBtn { padding: 3px 6px; border-radius: var(--radius-sm); border: 0.5px solid var(--border-strong); background: transparent; color: var(--text-muted); font-size: 14px; cursor: pointer; }
+.broadcastBtn:hover { color: var(--text-primary); }
+.deleteBtn { padding: 3px 6px; border-radius: var(--radius-sm); border: none; background: transparent; color: var(--text-muted); font-size: 13px; cursor: pointer; }
+.deleteBtn:hover { color: var(--danger); }
+
+/* Editor */
+.editor { display: flex; flex-direction: column; height: 100%; overflow: hidden; flex: 1; }
+.editorTopBar { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-bottom: 0.5px solid var(--border); flex-shrink: 0; }
+.backBtn { font-size: 12px; color: var(--accent); background: none; border: none; cursor: pointer; white-space: nowrap; }
+.backBtn:hover { text-decoration: underline; }
+.nameInput { flex: 1; font-size: 13px; font-weight: 500; }
+.broadcastBtn2 { padding: 5px 10px; border-radius: var(--radius-sm); background: var(--accent); color: #1a1a1a; font-size: 11px; font-weight: 600; border: none; cursor: pointer; white-space: nowrap; }
+.broadcastBtn2:hover { opacity: 0.88; }
+
+.editorBody { display: flex; flex: 1; min-height: 0; overflow: hidden; }
+
+/* Tool panel */
+.toolPanel { width: 170px; flex-shrink: 0; border-right: 0.5px solid var(--border); overflow-y: auto; padding: 8px; display: flex; flex-direction: column; gap: 10px; }
+.toolSection { display: flex; flex-direction: column; gap: 5px; }
+.toolLabel { font-size: 10px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-muted); font-weight: 600; }
+.uploadBtn { display: flex; align-items: center; justify-content: center; padding: 6px; border-radius: var(--radius-sm); border: 0.5px solid var(--border-strong); background: var(--bg-overlay); color: var(--text-secondary); font-size: 11px; cursor: pointer; gap: 4px; }
+.uploadBtn:hover { color: var(--accent); border-color: var(--accent-dim); }
+.colorRow { display: flex; align-items: center; gap: 8px; }
+.colorRow input[type=color] { width: 32px; height: 24px; border: none; padding: 0; cursor: pointer; border-radius: 3px; }
+
+/* Portrait picker */
+.charFilterRow { display: flex; gap: 2px; flex-wrap: wrap; margin-bottom: 2px; }
+.charFilterBtn { padding: 2px 6px; border-radius: 8px; border: 0.5px solid var(--border); background: transparent; color: var(--text-muted); font-size: 10px; cursor: pointer; }
+.charFilterBtn:hover { color: var(--text-primary); }
+.charFilterBtnActive { border-color: var(--accent); color: var(--accent); }
+.portraitPicker { display: flex; flex-direction: column; gap: 4px; max-height: 160px; overflow-y: auto; }
+.portraitPickItem { display: flex; align-items: center; gap: 6px; padding: 4px 6px; border-radius: var(--radius-sm); border: 0.5px solid var(--border); background: var(--bg-raised); cursor: pointer; font-size: 11px; color: var(--text-secondary); }
+.portraitPickItem:hover { background: var(--bg-overlay); color: var(--text-primary); }
+.portraitPickItem img { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
+
+/* Layer list */
+.layerItem { display: flex; align-items: center; gap: 5px; padding: 4px 6px; border-radius: var(--radius-sm); border: 0.5px solid var(--border); background: var(--bg-raised); cursor: pointer; font-size: 11px; color: var(--text-secondary); }
+.layerItem:hover { background: var(--bg-overlay); }
+.layerItemSelected { border-color: var(--accent); color: var(--accent); background: rgba(200,169,110,0.08); }
+.layerItemLabel { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.layerDeleteBtn { color: var(--text-muted); background: none; border: none; cursor: pointer; font-size: 13px; padding: 0 2px; flex-shrink: 0; }
+.layerDeleteBtn:hover { color: var(--danger); }
+
+/* Canvas */
+.canvasWrap { flex: 1; display: flex; align-items: center; justify-content: center; background: #0a0a0a; overflow: hidden; padding: 12px; }
+.canvas { position: relative; width: 100%; max-height: 100%; overflow: hidden; border-radius: 4px; box-shadow: 0 0 0 1px rgba(255,255,255,0.1), 0 8px 32px rgba(0,0,0,0.6); user-select: none; }
+
+.canvasLayer { position: absolute; cursor: move; }
+.canvasLayerSelected { outline: 2px solid var(--accent); outline-offset: 2px; }
+.canvasText { position: absolute; color: white; font-family: inherit; white-space: pre-wrap; text-shadow: 0 2px 8px rgba(0,0,0,0.8); pointer-events: all; cursor: move; }
+
+/* Right layer controls */
+.layerControls { width: 160px; flex-shrink: 0; border-left: 0.5px solid var(--border); overflow-y: auto; padding: 8px; display: flex; flex-direction: column; gap: 6px; }
+.xyRow { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--text-muted); }
+.xyRow input { flex: 1; min-width: 0; font-size: 11px; padding: 3px 4px; }
+.rangeVal { font-size: 10px; color: var(--text-muted); }
+.flipRow { display: flex; gap: 4px; }
+.flipBtn { flex: 1; padding: 4px; border-radius: var(--radius-sm); border: 0.5px solid var(--border-strong); background: transparent; color: var(--text-muted); font-size: 10px; cursor: pointer; }
+.flipBtn:hover { color: var(--text-primary); }
+.flipBtnActive { border-color: var(--accent); color: var(--accent); background: rgba(200,169,110,0.1); }
+.deleteLayerBtn { padding: 5px; border-radius: var(--radius-sm); border: 0.5px solid var(--danger); background: transparent; color: var(--danger); font-size: 11px; cursor: pointer; margin-top: 4px; }
+.deleteLayerBtn:hover { background: rgba(194,90,74,0.1); }

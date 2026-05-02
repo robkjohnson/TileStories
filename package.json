@@ -1,0 +1,26 @@
+{
+  "name": "tilestories",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "start": "concurrently \"npm run dev\" \"node server.js\"",
+    "build": "vite build",
+    "build:player": "vite build --config vite.player.config.js && node scripts/postbuild-player.js",
+    "preview": "vite preview",
+    "server": "node server.js"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "zustand": "^4.5.2",
+    "ws": "^8.18.0",
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "concurrently": "^8.2.2"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "4.3.4",
+    "vite": "6.3.5"
+  }
+}

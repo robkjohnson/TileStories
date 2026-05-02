@@ -1,0 +1,36 @@
+.root { display: flex; flex-direction: column; gap: 6px; }
+.header { display: flex; align-items: center; justify-content: flex-end; }
+.weight { font-size: 11px; color: var(--text-muted); }
+.empty { font-size: 12px; color: var(--text-muted); font-style: italic; padding: 8px 0; text-align: center; }
+
+.instanceWrap { position: relative; display: flex; flex-direction: column; }
+.instanceActions { position: absolute; top: 6px; right: 6px; display: flex; gap: 3px; }
+.editBtn { padding: 2px 6px; border-radius: 4px; font-size: 11px; color: var(--text-muted); cursor: pointer; border: 0.5px solid var(--border); background: var(--bg-overlay); }
+.editBtn:hover { color: var(--accent); }
+.removeBtn { width: 20px; height: 20px; border-radius: 3px; color: var(--text-muted); font-size: 15px; display: flex; align-items: center; justify-content: center; cursor: pointer; background: var(--bg-overlay); border: 0.5px solid var(--border); transition: all 0.1s; }
+.removeBtn:hover { color: var(--danger); border-color: var(--danger); }
+
+.editPanel { padding: 8px 10px; background: var(--bg-overlay); border: 0.5px solid var(--border); border-top: none; border-radius: 0 0 var(--radius-sm) var(--radius-sm); display: flex; flex-direction: column; gap: 6px; }
+.editRow { display: flex; align-items: center; gap: 8px; }
+.editRow label { font-size: 11px; color: var(--text-muted); width: 36px; flex-shrink: 0; }
+.editRow input { flex: 1; font-size: 12px; padding: 4px 7px; }
+.identCheck { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--text-secondary); cursor: pointer; }
+.identCheck input { accent-color: var(--accent); }
+
+.addBtn { width: 100%; padding: 7px; border-radius: var(--radius-sm); border: 0.5px dashed var(--border-strong); background: transparent; color: var(--text-muted); font-size: 12px; cursor: pointer; transition: all 0.1s; }
+.addBtn:hover { color: var(--accent); border-color: var(--accent-dim); }
+
+.picker { background: var(--bg-raised); border: 0.5px solid var(--border-strong); border-radius: var(--radius-md); overflow: hidden; }
+.pickerHeader { display: flex; gap: 6px; align-items: center; padding: 8px 10px; border-bottom: 0.5px solid var(--border); }
+.pickerSearch { flex: 1; font-size: 12px; padding: 5px 8px; }
+.pickerClose { width: 24px; height: 24px; border-radius: 4px; color: var(--text-muted); font-size: 16px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.pickerClose:hover { background: var(--bg-overlay); }
+.pickerEmpty { font-size: 12px; color: var(--text-muted); padding: 12px; text-align: center; font-style: italic; }
+.pickerList { max-height: 220px; overflow-y: auto; }
+.pickerItem { display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 12px; background: transparent; border: none; cursor: pointer; text-align: left; border-top: 0.5px solid var(--border); transition: background 0.1s; }
+.pickerItem:first-child { border-top: none; }
+.pickerItem:hover { background: var(--bg-overlay); }
+.pickerInfo { flex: 1; min-width: 0; }
+.pickerName { display: block; font-size: 13px; font-weight: 500; color: var(--text-primary); }
+.pickerMeta { font-size: 11px; color: var(--text-muted); }
+.pickerAdd { font-size: 11px; color: var(--accent); padding: 2px 8px; border-radius: 10px; border: 0.5px solid var(--accent-dim); flex-shrink: 0; }

@@ -1,0 +1,191 @@
+.screen {
+  position: fixed;
+  inset: 0;
+  background: var(--bg-base);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 48px 24px 32px;
+  overflow-y: auto;
+  z-index: 400;
+}
+
+/* Hero */
+.hero {
+  text-align: center;
+  margin-bottom: 36px;
+}
+.hexLogo {
+  font-size: 64px;
+  color: var(--accent);
+  opacity: 0.9;
+  margin-bottom: 10px;
+  animation: floatHex 4s ease-in-out infinite;
+}
+@keyframes floatHex {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+.title {
+  font-size: 38px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+}
+.subtitle {
+  font-size: 14px;
+  color: var(--text-muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* Actions */
+.actions {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.btnPrimary {
+  padding: 10px 24px;
+  border-radius: var(--radius-md);
+  background: var(--accent);
+  color: #1a1a1a;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: opacity 0.12s;
+}
+.btnPrimary:hover { opacity: 0.88; }
+
+.btnSecondary {
+  padding: 10px 20px;
+  border-radius: var(--radius-md);
+  border: 0.5px solid var(--border-strong);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.12s;
+}
+.btnSecondary:hover { background: var(--bg-raised); color: var(--text-primary); }
+
+.importError {
+  color: var(--danger);
+  font-size: 13px;
+  margin-bottom: 12px;
+  padding: 8px 14px;
+  background: rgba(194,90,74,0.1);
+  border: 0.5px solid var(--danger);
+  border-radius: var(--radius-sm);
+}
+
+/* Library */
+.library {
+  width: 100%;
+  max-width: 720px;
+}
+.libraryHeader {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+}
+
+.empty {
+  text-align: center;
+  padding: 60px 0;
+  color: var(--text-muted);
+}
+.emptyHex { font-size: 48px; opacity: 0.1; margin-bottom: 12px; }
+.empty p { font-size: 15px; margin-bottom: 6px; }
+.emptyHint { font-size: 13px; opacity: 0.6; }
+
+/* Campaign cards */
+.campaignGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.campaignCard {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  background: var(--bg-surface);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-md);
+  transition: border-color 0.12s, background 0.12s;
+}
+.campaignCard:hover { border-color: var(--border-strong); background: var(--bg-raised); }
+
+.cardHex {
+  font-size: 28px;
+  color: var(--accent);
+  opacity: 0.5;
+  flex-shrink: 0;
+  width: 40px;
+  text-align: center;
+}
+
+.cardInfo { flex: 1; min-width: 0; }
+.cardName { font-size: 15px; font-weight: 600; color: var(--text-primary); margin-bottom: 3px; }
+.cardMeta { font-size: 12px; color: var(--text-muted); }
+.cardDesc {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cardActions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+
+.cardLoad {
+  padding: 6px 16px;
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  color: #1a1a1a;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: opacity 0.12s;
+}
+.cardLoad:hover { opacity: 0.85; }
+
+.cardDelete {
+  width: 30px; height: 30px;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  border: 0.5px solid var(--border);
+  color: var(--text-muted);
+  font-size: 14px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.12s;
+}
+.cardDelete:hover { border-color: var(--danger); color: var(--danger); background: rgba(194,90,74,0.08); }
+
+.deleteConfirm {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--danger);
+}
+.deleteYes, .deleteNo {
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  cursor: pointer;
+}
+.deleteYes { background: var(--danger); color: #fff; border: none; }
+.deleteNo { background: transparent; border: 0.5px solid var(--border-strong); color: var(--text-secondary); }

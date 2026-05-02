@@ -1,0 +1,78 @@
+/* Container card */
+.container { background: var(--bg-raised); border: 0.5px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; margin-bottom: 6px; }
+.hidden { opacity: 0.65; border-style: dashed; }
+.containerHeader { display: flex; align-items: center; gap: 8px; padding: 8px 10px; cursor: pointer; user-select: none; transition: background 0.1s; }
+.containerHeader:hover { background: var(--bg-overlay); }
+.containerEmoji { font-size: 18px; flex-shrink: 0; }
+.containerInfo { flex: 1; min-width: 0; }
+.containerName { background: transparent; border: none; color: var(--text-primary); font-size: 13px; font-weight: 500; padding: 0; width: 100%; cursor: text; }
+.containerName:focus { outline: none; border-bottom: 0.5px solid var(--accent); }
+.containerMeta { font-size: 11px; color: var(--text-muted); margin-top: 1px; }
+.locked { color: var(--accent); }
+.hiddenTag { color: var(--text-muted); font-style: italic; }
+.chevron { font-size: 9px; color: var(--text-muted); flex-shrink: 0; }
+
+.containerBody { border-top: 0.5px solid var(--border); padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+
+.settingsRow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.typeSelect { font-size: 12px; flex-shrink: 0; }
+.toggleLabel { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--text-secondary); cursor: pointer; white-space: nowrap; }
+.toggleLabel input { accent-color: var(--accent); }
+.dcRow { display: flex; align-items: center; gap: 4px; }
+.dcLabel { font-size: 11px; color: var(--text-muted); }
+.dcInput { width: 44px; font-size: 12px; text-align: center; padding: 4px 4px; }
+.containerDesc { font-size: 12px; line-height: 1.5; }
+
+.sectionLabel { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); }
+.emptyItems { font-size: 12px; color: var(--text-muted); font-style: italic; padding: 6px 0; }
+
+.itemRow { display: flex; align-items: center; gap: 6px; }
+.itemRow > :first-child { flex: 1; min-width: 0; }
+.itemRowActions { display: flex; gap: 4px; align-items: center; flex-shrink: 0; }
+.transferBtn { padding: 3px 8px; border-radius: 10px; border: 0.5px solid var(--accent-dim); background: transparent; color: var(--accent); font-size: 11px; cursor: pointer; white-space: nowrap; }
+.transferBtn:hover { background: var(--bg-overlay); }
+.removeItemBtn { width: 20px; height: 20px; border-radius: 3px; color: var(--text-muted); font-size: 15px; display: flex; align-items: center; justify-content: center; cursor: pointer; background: var(--bg-overlay); border: 0.5px solid var(--border); }
+.removeItemBtn:hover { color: var(--danger); }
+
+/* Transfer menu */
+.transferMenu { position: absolute; right: 0; top: calc(100% + 4px); background: var(--bg-surface); border: 0.5px solid var(--border-strong); border-radius: var(--radius-md); min-width: 160px; z-index: 50; box-shadow: 0 8px 24px rgba(0,0,0,0.4); overflow: hidden; }
+.transferItem { display: flex; align-items: center; gap: 6px; width: 100%; padding: 8px 12px; background: transparent; border: none; cursor: pointer; font-size: 12px; color: var(--text-primary); text-align: left; border-top: 0.5px solid var(--border); }
+.transferItem:first-child { border-top: none; }
+.transferItem:hover { background: var(--bg-overlay); }
+.transferType { color: var(--text-muted); font-size: 10px; }
+
+/* Add item */
+.addItemBtn { width: 100%; padding: 6px; border-radius: var(--radius-sm); border: 0.5px dashed var(--border-strong); background: transparent; color: var(--text-muted); font-size: 12px; cursor: pointer; transition: all 0.1s; }
+.addItemBtn:hover { color: var(--accent); border-color: var(--accent-dim); }
+.addContainerBtn { width: 100%; padding: 7px; border-radius: var(--radius-sm); border: 0.5px dashed var(--border-strong); background: transparent; color: var(--text-muted); font-size: 12px; cursor: pointer; transition: all 0.1s; margin-top: 4px; }
+.addContainerBtn:hover { color: var(--accent); border-color: var(--accent-dim); }
+
+/* Picker */
+.picker { background: var(--bg-overlay); border: 0.5px solid var(--border-strong); border-radius: var(--radius-sm); overflow: hidden; }
+.pickerHeader { display: flex; gap: 6px; align-items: center; padding: 6px 8px; border-bottom: 0.5px solid var(--border); }
+.pickerSearch { flex: 1; font-size: 12px; padding: 4px 7px; }
+.pickerClose { width: 22px; height: 22px; color: var(--text-muted); font-size: 15px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.pickerList { max-height: 180px; overflow-y: auto; }
+.pickerItem { display: flex; align-items: center; gap: 7px; width: 100%; padding: 7px 10px; background: transparent; border: none; cursor: pointer; border-top: 0.5px solid var(--border); transition: background 0.1s; }
+.pickerItem:first-child { border-top: none; }
+.pickerItem:hover { background: var(--bg-overlay); }
+.pickerName { flex: 1; font-size: 12px; color: var(--text-primary); text-align: left; }
+.pickerAdd { font-size: 11px; color: var(--accent); padding: 1px 7px; border-radius: 8px; border: 0.5px solid var(--accent-dim); }
+.pickerEmpty { font-size: 12px; color: var(--text-muted); padding: 10px; text-align: center; font-style: italic; }
+
+/* Delete */
+.deleteRow { display: flex; align-items: center; gap: 8px; padding-top: 6px; border-top: 0.5px solid var(--border); flex-wrap: wrap; }
+.deleteWarning { font-size: 12px; color: var(--danger); flex: 1; }
+.deleteBtn { font-size: 12px; color: var(--danger); background: none; border: none; cursor: pointer; }
+.deleteConfirmBtn { padding: 4px 10px; border-radius: var(--radius-sm); background: var(--danger); color: #fff; border: none; font-size: 12px; cursor: pointer; }
+.cancelBtn { padding: 4px 10px; border-radius: var(--radius-sm); border: 0.5px solid var(--border-strong); background: transparent; color: var(--text-secondary); font-size: 12px; cursor: pointer; }
+
+/* Container manager */
+.manager { display: flex; flex-direction: column; gap: 6px; }
+.managerHeader { display: flex; gap: 8px; }
+.mapFilter { flex: 1; font-size: 12px; }
+.empty { font-size: 13px; color: var(--text-muted); font-style: italic; text-align: center; padding: 20px; line-height: 1.6; }
+.managerRow { display: flex; align-items: center; gap: 10px; padding: 9px 12px; background: var(--bg-raised); border: 0.5px solid var(--border); border-radius: var(--radius-sm); }
+.managerInfo { flex: 1; min-width: 0; }
+.managerName { display: block; font-size: 13px; font-weight: 500; color: var(--text-primary); }
+.managerMeta { font-size: 11px; color: var(--text-muted); }
