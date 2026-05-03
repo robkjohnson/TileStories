@@ -567,46 +567,56 @@ function StoryboardDisplay({ storyboard: sb }) {
   const bgSrc = useImage(sb.backgroundImage)
 
   return (
-    <div className={styles.storyboardDisplay}
-      style={{ backgroundColor: sb.backgroundColor || '#1a1c1e' }}>
-      {bgSrc && (
-        <img src={bgSrc} alt="" style={{ position:'absolute', inset:0, width:'100%', height:'100%', objectFit:'cover', pointerEvents:'none' }} />
-      )}
-      {sb.layers?.map(layer => (
-        <div key={layer.id} style={{
-          position: 'absolute',
-          left: `${(layer.x / CANVAS_W) * 100}%`,
-          top: `${(layer.y / CANVAS_H) * 100}%`,
-          width: `${(layer.width / CANVAS_W) * 100}%`,
-          height: `${(layer.height / CANVAS_H) * 100}%`,
-          transform: `rotate(${layer.rotation || 0}deg) scaleX(${layer.flipX ? -1 : 1}) scaleY(${layer.flipY ? -1 : 1})`,
-          opacity: layer.opacity ?? 1,
-          pointerEvents: 'none',
-          zIndex: 1,
-        }}>
-          <ResolvedLayerImg src={layer.src} style={{ width:'100%', height:'100%', objectFit:'contain' }} />
-        </div>
-      ))}
-      {sb.textBlocks?.map(tb => (
-        <div key={tb.id} style={{
-          position: 'absolute',
-          left: `${(tb.x / CANVAS_W) * 100}%`,
-          top: `${(tb.y / CANVAS_H) * 100}%`,
-          fontSize: `${(tb.fontSize / CANVAS_H) * 100}vh`,
-          color: tb.color || '#fff',
-          fontWeight: tb.bold ? 700 : 400,
-          fontStyle: tb.italic ? 'italic' : 'normal',
-          textAlign: tb.align || 'left',
-          opacity: tb.opacity ?? 1,
-          maxWidth: tb.maxWidth ? `${(tb.maxWidth / CANVAS_W) * 100}%` : undefined,
-          whiteSpace: tb.maxWidth ? 'pre-wrap' : 'nowrap',
-          textShadow: '0 2px 12px rgba(0,0,0,0.9)',
-          pointerEvents: 'none',
-          zIndex: 2,
-        }}>
-          {tb.text}
-        </div>
-      ))}
+    <div style={{ position: 'absolute', inset: 0, background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{
+        position: 'relative',
+        width: 'min(100vw, calc(100vh * 16 / 9))',
+        height: 'min(100vh, calc(100vw * 9 / 16))',
+        containerType: 'size',
+        backgroundColor: sb.backgroundColor || '#1a1c1e',
+        overflow: 'hidden',
+      }}>
+        {bgSrc && (
+          <img src={bgSrc} alt="" style={{ position:'absolute', inset:0, width:'100%', height:'100%', objectFit:'cover', pointerEvents:'none' }} />
+        )}
+        {sb.layers?.map(layer => (
+          <div key={layer.id} style={{
+            position: 'absolute',
+            left: `${(layer.x / CANVAS_W) * 100}%`,
+            top: `${(layer.y / CANVAS_H) * 100}%`,
+            width: `${(layer.width / CANVAS_W) * 100}%`,
+            height: `${(layer.height / CANVAS_H) * 100}%`,
+            transform: `rotate(${layer.rotation || 0}deg) scaleX(${layer.flipX ? -1 : 1}) scaleY(${layer.flipY ? -1 : 1})`,
+            opacity: layer.opacity ?? 1,
+            pointerEvents: 'none',
+            zIndex: 1,
+          }}>
+            <ResolvedLayerImg src={layer.src} style={{ width:'100%', height:'100%', objectFit:'contain' }} />
+          </div>
+        ))}
+        {sb.textBlocks?.map(tb => (
+          <div key={tb.id} style={{
+            position: 'absolute',
+            left: `${(tb.x / CANVAS_W) * 100}%`,
+            top: `${(tb.y / CANVAS_H) * 100}%`,
+            fontSize: `${(tb.fontSize / CANVAS_H) * 100}cqh`,
+            color: tb.color || '#fff',
+            fontWeight: tb.bold ? 700 : 400,
+            fontStyle: tb.italic ? 'italic' : 'normal',
+            textAlign: tb.align || 'left',
+            opacity: tb.opacity ?? 1,
+            maxWidth: tb.maxWidth ? `${(tb.maxWidth / CANVAS_W) * 100}%` : '100%',
+            whiteSpace: 'pre-wrap',
+            overflowWrap: 'break-word',
+            textShadow: '0 2px 12px rgba(0,0,0,0.9)',
+            transform: `rotate(${tb.rotation || 0}deg)`,
+            pointerEvents: 'none',
+            zIndex: 2,
+          }}>
+            {tb.text}
+          </div>
+        ))}
+      </div>
     </div>
   )
 }

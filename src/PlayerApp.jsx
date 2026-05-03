@@ -1540,69 +1540,112 @@ function ResolvedImg({ src, style, alt }) {
 function PlayerStoryboardOverlay({ storyboard: sb, onDismiss }) {
   const CANVAS_W = 1280, CANVAS_H = 720
   const bgSrc = useImage(sb.backgroundImage)
+  const [zoom, setZoom] = useState(1)
+  const outerRef = useRef(null)
+  const pinchRef = useRef(null)
+
+  useEffect(() => {
+    const el = outerRef.current
+    if (!el) return
+    function onWheel(e) {
+      e.preventDefault()
+      setZoom(z => Math.max(0.5, Math.min(5, z * (e.deltaY < 0 ? 1.1 : 0.9))))
+    }
+    el.addEventListener('wheel', onWheel, { passive: false })
+    return () => el.removeEventListener('wheel', onWheel)
+  }, [])
+
+  function onTouchStart(e) {
+    if (e.touches.length === 2) {
+      const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY)
+      pinchRef.current = { startDist: d, startZoom: zoom }
+    }
+  }
+
+  function onTouchMove(e) {
+    if (e.touches.length === 2 && pinchRef.current) {
+      const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY)
+      setZoom(Math.max(0.5, Math.min(5, pinchRef.current.startZoom * (d / pinchRef.current.startDist))))
+    }
+  }
+
+  const ctrlBtn = {
+    width: 36, height: 36, borderRadius: 8, flexShrink: 0,
+    background: 'rgba(0,0,0,0.7)', border: '1px solid rgba(255,255,255,0.3)',
+    color: '#fff', fontSize: 16, cursor: 'pointer',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+  }
 
   return (
-    <div style={{
-      position: 'fixed', inset: 0,
-      backgroundColor: sb.backgroundColor || '#1a1c1e',
-      zIndex: 300, overflow: 'hidden',
-    }}>
-      {/* Background image */}
-      {bgSrc && (
-        <img src={bgSrc} alt="" style={{
-          position: 'absolute', inset: 0,
-          width: '100%', height: '100%',
-          objectFit: 'cover', pointerEvents: 'none',
-        }} />
-      )}
-
-      {/* Image layers */}
-      {(sb.layers || []).map(layer => (
-        <div key={layer.id} style={{
-          position: 'absolute',
-          left: `${(layer.x / CANVAS_W) * 100}%`,
-          top: `${(layer.y / CANVAS_H) * 100}%`,
-          width: `${(layer.width / CANVAS_W) * 100}%`,
-          height: `${(layer.height / CANVAS_H) * 100}%`,
-          transform: `rotate(${layer.rotation || 0}deg) scaleX(${layer.flipX ? -1 : 1}) scaleY(${layer.flipY ? -1 : 1})`,
-          opacity: layer.opacity ?? 1,
-          pointerEvents: 'none',
-        }}>
-          <ResolvedImg src={layer.src} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-        </div>
-      ))}
-
-      {/* Text blocks */}
-      {(sb.textBlocks || []).map(tb => (
-        <div key={tb.id} style={{
-          position: 'absolute',
-          left: `${(tb.x / CANVAS_W) * 100}%`,
-          top: `${(tb.y / CANVAS_H) * 100}%`,
-          fontSize: `${(tb.fontSize / CANVAS_H) * 100}vh`,
-          color: tb.color || '#fff',
-          fontWeight: tb.bold ? 700 : 400,
-          fontStyle: tb.italic ? 'italic' : 'normal',
-          textAlign: tb.align || 'left',
-          opacity: tb.opacity ?? 1,
-          maxWidth: tb.maxWidth ? `${(tb.maxWidth / CANVAS_W) * 100}%` : undefined,
-          whiteSpace: tb.maxWidth ? 'pre-wrap' : 'nowrap',
-          textShadow: '0 2px 12px rgba(0,0,0,0.9)',
-          pointerEvents: 'none',
-        }}>
-          {tb.text}
-        </div>
-      ))}
-
-      {/* Dismiss */}
-      <button onClick={onDismiss} style={{
-        position: 'absolute', bottom: 24, right: 24,
-        padding: '10px 24px', borderRadius: 8,
-        background: 'rgba(0,0,0,0.7)',
-        border: '1px solid rgba(255,255,255,0.3)',
-        color: '#fff', fontSize: 14, cursor: 'pointer', zIndex: 10,
+    <div
+      ref={outerRef}
+      style={{ position: 'fixed', inset: 0, background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 300, touchAction: 'none' }}
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={() => { pinchRef.current = null }}
+    >
+      {/* Letterbox canvas — 16:9, centered, with black bars */}
+      <div style={{
+        position: 'relative',
+        width: 'min(100vw, calc(100vh * 16 / 9))',
+        height: 'min(100vh, calc(100vw * 9 / 16))',
+        containerType: 'size',
+        backgroundColor: sb.backgroundColor || '#1a1c1e',
+        overflow: 'hidden',
+        transform: `scale(${zoom})`,
+        transformOrigin: 'center',
       }}>
-        Continue →
-      </button>
+        {bgSrc && (
+          <img src={bgSrc} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', pointerEvents: 'none' }} />
+        )}
+
+        {(sb.layers || []).map(layer => (
+          <div key={layer.id} style={{
+            position: 'absolute',
+            left: `${(layer.x / CANVAS_W) * 100}%`,
+            top: `${(layer.y / CANVAS_H) * 100}%`,
+            width: `${(layer.width / CANVAS_W) * 100}%`,
+            height: `${(layer.height / CANVAS_H) * 100}%`,
+            transform: `rotate(${layer.rotation || 0}deg) scaleX(${layer.flipX ? -1 : 1}) scaleY(${layer.flipY ? -1 : 1})`,
+            opacity: layer.opacity ?? 1,
+            pointerEvents: 'none',
+          }}>
+            <ResolvedImg src={layer.src} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+          </div>
+        ))}
+
+        {(sb.textBlocks || []).map(tb => (
+          <div key={tb.id} style={{
+            position: 'absolute',
+            left: `${(tb.x / CANVAS_W) * 100}%`,
+            top: `${(tb.y / CANVAS_H) * 100}%`,
+            fontSize: `${(tb.fontSize / CANVAS_H) * 100}cqh`,
+            color: tb.color || '#fff',
+            fontWeight: tb.bold ? 700 : 400,
+            fontStyle: tb.italic ? 'italic' : 'normal',
+            textAlign: tb.align || 'left',
+            opacity: tb.opacity ?? 1,
+            maxWidth: tb.maxWidth ? `${(tb.maxWidth / CANVAS_W) * 100}%` : '100%',
+            whiteSpace: 'pre-wrap',
+            overflowWrap: 'break-word',
+            textShadow: '0 2px 12px rgba(0,0,0,0.9)',
+            transform: `rotate(${tb.rotation || 0}deg)`,
+            pointerEvents: 'none',
+          }}>
+            {tb.text}
+          </div>
+        ))}
+      </div>
+
+      {/* Zoom + dismiss controls */}
+      <div style={{ position: 'absolute', bottom: 24, right: 24, display: 'flex', gap: 8, zIndex: 10 }}>
+        <button style={ctrlBtn} onClick={() => setZoom(z => Math.min(5, z * 1.2))}>+</button>
+        <button style={ctrlBtn} onClick={() => setZoom(z => Math.max(0.5, z * 0.8))}>−</button>
+        <button style={ctrlBtn} onClick={() => setZoom(1)} title="Reset zoom">⊡</button>
+        <button onClick={onDismiss} style={{ ...ctrlBtn, width: 'auto', padding: '0 16px', fontSize: 14 }}>
+          Continue →
+        </button>
+      </div>
     </div>
   )
 }

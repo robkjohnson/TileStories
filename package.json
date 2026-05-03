@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "vite",
-    "start": "concurrently \"npm run dev\" \"node server.js\"",
+    "start": "npm run build:player && concurrently \"npm run dev\" \"node server.js\"",
     "build": "vite build",
     "build:player": "vite build --config vite.player.config.js && node scripts/postbuild-player.js",
     "preview": "vite preview",
