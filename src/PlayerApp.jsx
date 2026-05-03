@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
+import { TOKEN_EMOJIS } from './utils/tokenEmojis'
 import useGameSocket from './utils/useGameSocket'
 import { getDeviceId, savePlayerCharacter, loadPlayerCharacter } from './utils/playerDevice'
 import { hexToPixel, hexCorners, pixelToHex, gridBounds, HEX_SIZE, hexDistance, squareToPixel, squareCorners, pixelToSquare, squareGridBounds, SQUARE_SIZE, squareDistance } from './utils/hexMath'
@@ -543,8 +544,11 @@ function PlayerMapView({ map, campaign, session, character, send, isMyTurn, onMo
   const [selectedTile, setSelectedTile] = useState(null)
   const [camera, setCamera] = useState({ x: 0, y: 0, zoom: 1 })
   const [annotations, setAnnotations] = useState({})
+  const [labelSize, setLabelSize] = useState(() => parseFloat(localStorage.getItem('tilestories_playerLabelSize') || '1'))
   const cameraRef = useRef(camera)
   cameraRef.current = camera
+  const labelSizeRef = useRef(labelSize)
+  labelSizeRef.current = labelSize
   const fittedMap = useRef(null)
   const drawRef = useRef(null)
 
@@ -611,21 +615,6 @@ function PlayerMapView({ map, campaign, session, character, send, isMyTurn, onMo
           ctx.fill()
         }
 
-        // Tile label — only show if organizer has toggled it visible
-        if (tile.label && tile.showLabel && tileR > 18) {
-          const fontSize = Math.min(11, tileR * 0.2)
-          ctx.font = `500 ${fontSize}px sans-serif`
-          ctx.textAlign = 'center'
-          ctx.textBaseline = 'middle'
-          // Dark pill background for readability
-          const textW = ctx.measureText(tile.label).width
-          const padX = 4, padY = 2
-          ctx.fillStyle = 'rgba(0,0,0,0.55)'
-          ctx.fillRect(sx - textW / 2 - padX, sy - fontSize / 2 - padY, textW + padX * 2, fontSize + padY * 2)
-          ctx.fillStyle = biome.textColor
-          ctx.fillText(tile.label, sx, sy)
-        }
-
         // Fired event overlays
         const firedEvents = map.firedEvents || {}
         const overlay = firedEvents[key]
@@ -670,6 +659,23 @@ function PlayerMapView({ map, campaign, session, character, send, isMyTurn, onMo
           ctx.lineTo(px2, py2 + pinSize * 0.5)
           ctx.closePath()
           ctx.fill()
+        }
+
+        // Label — drawn last so it sits above tokens and pins
+        if (tile.label && tile.showLabel && tileR > 18) {
+          const ls = labelSizeRef.current
+          const fontSize = Math.min(11 * ls, tileR * 0.2 * ls)
+          ctx.font = `500 ${fontSize}px sans-serif`
+          ctx.textAlign = 'center'
+          ctx.textBaseline = 'top'
+          const textW = ctx.measureText(tile.label).width
+          const padX = 4, padY = 2
+          const pillX = sx - textW / 2 - padX
+          const pillY = sy - tileR * 0.62
+          ctx.fillStyle = 'rgba(0,0,0,0.72)'
+          ctx.fillRect(pillX, pillY, textW + padX * 2, fontSize + padY * 2)
+          ctx.fillStyle = biome.textColor
+          ctx.fillText(tile.label, sx, pillY + padY)
         }
       }
     }
@@ -859,6 +865,19 @@ function PlayerMapView({ map, campaign, session, character, send, isMyTurn, onMo
           onTouchMove={onTouchMove}
           onTouchEnd={onTouchEnd}
         />
+        {/* Label size control */}
+        <div style={{ position: 'absolute', bottom: 8, left: 8, display: 'flex', alignItems: 'center', gap: 5, background: 'rgba(20,22,24,0.78)', borderRadius: 6, padding: '3px 8px', pointerEvents: 'auto' }}>
+          <span style={{ fontSize: 10, color: 'rgba(200,200,200,0.55)', userSelect: 'none' }}>A</span>
+          <input type="range" min={0.5} max={2} step={0.1} value={labelSize}
+            onChange={e => {
+              const v = parseFloat(e.target.value)
+              localStorage.setItem('tilestories_playerLabelSize', v)
+              setLabelSize(v)
+            }}
+            style={{ width: 60, accentColor: '#c8a96e' }}
+          />
+          <span style={{ fontSize: 13, color: 'rgba(200,200,200,0.55)', userSelect: 'none' }}>A</span>
+        </div>
       </div>
 
       {/* Tile info panel */}
@@ -1261,8 +1280,8 @@ function PlayerInventoryView({ character, campaign }) {
   )
 }
 
-// ── Shared emoji list (matches organizer) ────────────────────
-const PLAYER_EMOJIS = ['🧙','👤','👹','🧝','🧟','🐉','👑','⚔️','🛡️','🗡️','🔮','💀','🐺','🦅','🧌','🧛','🏹','🌿','🔥','❄️','⚡','🎭','🗺️','🎲']
+// Re-export shared emoji list under the local alias used below
+const PLAYER_EMOJIS = TOKEN_EMOJIS
 
 // ── Character selector ───────────────────────────────────────
 function CharacterSelector({ selected, onSelect }) {

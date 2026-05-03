@@ -6,7 +6,7 @@ import TurnTracker from '../TurnTracker/TurnTracker'
 import { rollDice } from '../../utils/dice'
 
 export default function SessionControls() {
-  const { campaign } = useStore()
+  const { campaign, displayLabelSize, setDisplayLabelSize } = useStore()
   const { session, connected, setServerInfo, diceRolls } = useSessionStore()
   const [cutsceneForm, setCutsceneForm] = useState(false)
   const [playerUrl, setPlayerUrl] = useState(null)
@@ -165,6 +165,14 @@ export default function SessionControls() {
               onClick={() => send({ type: 'SHOW_DISPLAY_MAP' })}>
               🗺 Show map
             </button>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
+            <span style={{ fontSize: 11, color: 'var(--text-secondary)', flex: 1 }}>Label size</span>
+            <input type="range" min={0.5} max={2} step={0.1}
+              value={displayLabelSize}
+              onChange={e => setDisplayLabelSize(parseFloat(e.target.value))}
+              style={{ width: 72, accentColor: 'var(--accent)' }} />
+            <span style={{ fontSize: 10, color: 'var(--text-muted)', minWidth: 28, textAlign: 'right' }}>{displayLabelSize.toFixed(1)}×</span>
           </div>
         </div>
 

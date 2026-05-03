@@ -385,6 +385,7 @@ function DisplayMapView({ map, campaign, session }) {
     const BASE_SIZE = isSquare ? SQUARE_SIZE : HEX_SIZE
     const sz = BASE_SIZE * zoom
     const tileR = isSquare ? sz / 2 : sz
+    const displayLabelSize = parseFloat(localStorage.getItem('tilestories_displayLabelSize') || '1')
 
     ctx.fillStyle = '#141618'
     ctx.fillRect(0, 0, W, H)
@@ -429,21 +430,24 @@ function DisplayMapView({ map, campaign, session }) {
           ctx.stroke()
         }
 
-        // Tile label
-        if (tile.label && tile.showLabel && tileR > 18) {
-          const fontSize = Math.min(13, tileR * 0.22)
-          ctx.font = `600 ${fontSize}px sans-serif`
-          ctx.textAlign = 'center'
-          ctx.textBaseline = 'middle'
-          const tw = ctx.measureText(tile.label).width
-          ctx.fillStyle = 'rgba(0,0,0,0.6)'
-          ctx.fillRect(sx - tw/2 - 4, sy - fontSize/2 - 2, tw + 8, fontSize + 4)
-          ctx.fillStyle = biome.textColor
-          ctx.fillText(tile.label, sx, sy)
-        }
-
         // Tokens — display shows same as players (player/key/revealed only, no organizer dots)
         drawTileTokens(ctx, sx, sy, tileR, tile, characters, false)
+
+        // Label — drawn last so it sits above tokens
+        if (tile.label && tile.showLabel && tileR > 18) {
+          const fontSize = Math.min(13 * displayLabelSize, tileR * 0.22 * displayLabelSize)
+          ctx.font = `600 ${fontSize}px sans-serif`
+          ctx.textAlign = 'center'
+          ctx.textBaseline = 'top'
+          const tw = ctx.measureText(tile.label).width
+          const padX = 4, padY = 2
+          const pillX = sx - tw / 2 - padX
+          const pillY = sy - tileR * 0.62
+          ctx.fillStyle = 'rgba(0,0,0,0.72)'
+          ctx.fillRect(pillX, pillY, tw + padX * 2, fontSize + padY * 2)
+          ctx.fillStyle = biome.textColor
+          ctx.fillText(tile.label, sx, pillY + padY)
+        }
       }
     }
 

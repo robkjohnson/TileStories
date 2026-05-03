@@ -306,7 +306,7 @@ function CreatureSheetDiceRoller({ creature }) {
 
   return (
     <>
-      <div className={styles.sectionLabel}>Dice Roll</div>
+      <div className={styles.sectionLabel}>Dice Roll for Creature</div>
       <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
         {Object.keys(DICE_TYPES).map(dt => (
           <button key={dt}

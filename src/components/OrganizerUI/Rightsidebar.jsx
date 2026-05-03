@@ -88,7 +88,7 @@ function EntityDetail({ entity, onBack }) {
 
 // ── Settings tab ──────────────────────────────────────────────
 function SettingsTab() {
-  const { showGrid, toggleGrid, showCoords, toggleCoords, showAllLabels, toggleAllLabels } = useStore()
+  const { showGrid, toggleGrid, showCoords, toggleCoords, showAllLabels, toggleAllLabels, labelSize, setLabelSize } = useStore()
   return (
     <div className={styles.section}>
       <div className={styles.sectionLabel}>Map display</div>
@@ -104,6 +104,13 @@ function SettingsTab() {
         <input type="checkbox" checked={showAllLabels} onChange={toggleAllLabels} />
         Show all tile labels
       </label>
+      <div className={styles.settingRow}>
+        <span style={{ flex: 1 }}>Label size</span>
+        <input type="range" min={0.5} max={2} step={0.1} value={labelSize}
+          onChange={e => setLabelSize(parseFloat(e.target.value))}
+          style={{ width: 72, accentColor: 'var(--accent)' }} />
+        <span style={{ fontSize: 10, color: 'var(--text-muted)', minWidth: 28, textAlign: 'right' }}>{labelSize.toFixed(1)}×</span>
+      </div>
     </div>
   )
 }

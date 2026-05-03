@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react'
 import { useStore } from '../../store/useStore'
+import { TOKEN_EMOJIS } from '../../utils/tokenEmojis'
 import styles from './CharacterSheet.module.css'
 import { useDebouncedField } from '../../utils/useDebouncedStore'
 import { storeImage } from '../../utils/imageStorage'
@@ -142,19 +143,19 @@ export default function CharacterSheet({ characterId, onClose, inline }) {
                   onClick={() => update('type', type)}>{c.label}</button>
               ))}
             </div>
-            <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginTop:4 }}>
-              <label style={{ display:'flex', alignItems:'center', gap:5, fontSize:11, color:'var(--text-secondary)', cursor:'pointer' }}>
-                <input type="checkbox" checked={!!character.isKey}
-                  onChange={e => update('isKey', e.target.checked)}
-                  style={{ accentColor:'var(--accent)' }} />
-                Key character (shows on all maps)
-              </label>
-              <label style={{ display:'flex', alignItems:'center', gap:5, fontSize:11, color:'var(--text-secondary)', cursor:'pointer' }}>
-                <input type="checkbox" checked={!!character.revealedToPlayers}
-                  onChange={e => update('revealedToPlayers', e.target.checked)}
-                  style={{ accentColor:'var(--accent)' }} />
-                Revealed to players
-              </label>
+            <div style={{ display:'flex', gap:5, flexWrap:'wrap', marginTop:4 }}>
+              <PillToggle
+                active={!!character.isKey}
+                onChange={v => update('isKey', v)}
+                activeColor="#c8a96e"
+                label="Key character"
+              />
+              <PillToggle
+                active={!!character.revealedToPlayers}
+                onChange={v => update('revealedToPlayers', v)}
+                activeColor="#5b9bd5"
+                label="Revealed to players"
+              />
             </div>
             {character.portrait && (
               <button className={styles.removePortrait} onClick={() => update('portrait', null)}>Remove portrait</button>
@@ -190,7 +191,7 @@ export default function CharacterSheet({ characterId, onClose, inline }) {
           <div className={styles.section}>
             <div className={styles.sectionLabel}>Token icon <span className={styles.hint}>(shown on map when no portrait)</span></div>
             <div className={styles.emojiRow}>
-              {['🧙','👤','👹','🧝','🧟','🐉','👑','⚔️','🛡️','🗡️','🔮','💀','🐺','🦅','🧌','🧛','🏹','🌿','🔥','❄️','⚡','🎭','🗺️','🎲'].map(e => (
+              {TOKEN_EMOJIS.map(e => (
                 <button key={e}
                   className={`${styles.emojiBtn} ${character.emoji === e ? styles.emojiBtnActive : ''}`}
                   onClick={() => update('emoji', character.emoji === e ? null : e)}>{e}</button>
@@ -419,7 +420,7 @@ function SheetDiceRoller({ character }) {
 
   return (
     <div className={styles.section}>
-      <div className={styles.sectionLabel}>Dice Roll</div>
+      <div className={styles.sectionLabel}>Roll Dice for Player</div>
       <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
         {Object.keys(DICE_TYPES).map(dt => (
           <button key={dt}
@@ -453,5 +454,33 @@ function SheetDiceRoller({ character }) {
         )}
       </div>
     </div>
+  )
+}
+
+// ── Pill toggle — styled boolean button ──────────────────────
+function PillToggle({ active, onChange, activeColor, label }) {
+  return (
+    <button
+      onClick={() => onChange(!active)}
+      style={{
+        display: 'flex', alignItems: 'center', gap: 5,
+        padding: '3px 8px 3px 5px',
+        borderRadius: 20,
+        border: `1px solid ${active ? activeColor : 'var(--border)'}`,
+        background: active ? activeColor + '22' : 'transparent',
+        color: active ? activeColor : 'var(--text-muted)',
+        fontSize: 11, cursor: 'pointer',
+        transition: 'border-color 0.15s, background 0.15s, color 0.15s',
+      }}
+    >
+      <span style={{
+        width: 13, height: 13, borderRadius: '50%', flexShrink: 0,
+        background: active ? activeColor : 'var(--border)',
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+        fontSize: 8, color: active ? '#1a1a1a' : 'transparent',
+        transition: 'background 0.15s',
+      }}>✓</span>
+      {label}
+    </button>
   )
 }

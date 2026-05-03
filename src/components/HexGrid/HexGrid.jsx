@@ -28,7 +28,7 @@ export default function HexGrid() {
     const H = canvas.height
     if (!W || !H) return
 
-    const { campaign, camera, showGrid, showCoords, showAllLabels, selectedTile, portalPickMode } = storeRef.current
+    const { campaign, camera, showGrid, showCoords, showAllLabels, labelSize, selectedTile, portalPickMode } = storeRef.current
 
     // Load player annotations for this map (from localStorage)
     const playerAnnotations = campaign
@@ -348,23 +348,6 @@ export default function HexGrid() {
           }
         }
 
-        // ── Label — drawn last, always on top, anchored to upper hex ──
-        const showThisLabel = tile.label && (tile.showLabel || showAllLabels)
-        if (showThisLabel && tileR > 18) {
-          const fontSize = Math.min(11, tileR * 0.2)
-          ctx.font = `500 ${fontSize}px sans-serif`
-          ctx.textAlign = 'center'
-          ctx.textBaseline = 'top'
-          const textW = ctx.measureText(tile.label).width
-          const padX = 4, padY = 2
-          const pillX = sx - textW / 2 - padX
-          const pillY = sy - tileR * 0.62  // upper third of tile, clear of center tokens
-          ctx.fillStyle = 'rgba(0,0,0,0.72)'
-          ctx.fillRect(pillX, pillY, textW + padX * 2, fontSize + padY * 2)
-          ctx.fillStyle = biome.textColor
-          ctx.fillText(tile.label, sx, pillY + padY)
-        }
-
         // Container token — show chest/bag icon if any containers are on this tile
         const mapContainers = Object.values(storeRef.current.campaign?.containers || {})
           .filter(c => c.mapId === storeRef.current.campaign?.activeMapId &&
@@ -414,6 +397,23 @@ export default function HexGrid() {
           ctx.beginPath()
           ctx.arc(sx - tileR * 0.38, sy - tileR * 0.38, Math.max(3, tileR * 0.1), 0, Math.PI * 2)
           ctx.fill()
+        }
+
+        // ── Label — drawn last so it sits above tokens, containers, and event dots ──
+        const showThisLabel = tile.label && (tile.showLabel || showAllLabels)
+        if (showThisLabel && tileR > 18) {
+          const fontSize = Math.min(11 * labelSize, tileR * 0.2 * labelSize)
+          ctx.font = `500 ${fontSize}px sans-serif`
+          ctx.textAlign = 'center'
+          ctx.textBaseline = 'top'
+          const textW = ctx.measureText(tile.label).width
+          const padX = 4, padY = 2
+          const pillX = sx - textW / 2 - padX
+          const pillY = sy - tileR * 0.62
+          ctx.fillStyle = 'rgba(0,0,0,0.72)'
+          ctx.fillRect(pillX, pillY, textW + padX * 2, fontSize + padY * 2)
+          ctx.fillStyle = biome.textColor
+          ctx.fillText(tile.label, sx, pillY + padY)
         }
       }
     }

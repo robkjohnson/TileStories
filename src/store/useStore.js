@@ -1363,6 +1363,8 @@ export const useStore = create((set, get) => ({
   showGrid: true,
   showCoords: false,
   showAllLabels: false,   // organizer global toggle — show all tile labels at once
+  labelSize: parseFloat(localStorage.getItem('tilestories_labelSize') || '1'),
+  displayLabelSize: parseFloat(localStorage.getItem('tilestories_displayLabelSize') || '1'),
   inspectorOpen: true,
   // Tile selection mode — when active, map clicks toggle tiles in a list
   tileSelectionMode: null,
@@ -1380,6 +1382,8 @@ export const useStore = create((set, get) => ({
   toggleGrid: () => set(s => ({ showGrid: !s.showGrid })),
   toggleCoords: () => set(s => ({ showCoords: !s.showCoords })),
   toggleAllLabels: () => set(s => ({ showAllLabels: !s.showAllLabels })),
+  setLabelSize: (v) => { localStorage.setItem('tilestories_labelSize', v); set({ labelSize: v }) },
+  setDisplayLabelSize: (v) => { localStorage.setItem('tilestories_displayLabelSize', v); set({ displayLabelSize: v }) },
   setInspectorOpen: (v) => set({ inspectorOpen: v }),
   setViewerMode: (mode) => set({ viewerMode: mode }),
   setViewerTraits: (traits) => set({ viewerTraits: traits }),
