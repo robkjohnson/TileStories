@@ -587,6 +587,8 @@ function PlayerMapView({ map, campaign, session, character, send, isMyTurn, onMo
     ctx.fillStyle = '#141618'
     ctx.fillRect(0, 0, W, H)
 
+    const pendingLabels = []
+
     for (let q = 0; q < map.cols; q++) {
       for (let r = 0; r < map.rows; r++) {
         const key = `${q},${r}`
@@ -661,23 +663,28 @@ function PlayerMapView({ map, campaign, session, character, send, isMyTurn, onMo
           ctx.fill()
         }
 
-        // Label — drawn last so it sits above tokens and pins
+        // Collect label for second pass so it renders above all tile bodies
         if (tile.label && tile.showLabel && tileR > 18) {
-          const ls = labelSizeRef.current
-          const fontSize = Math.min(11 * ls, tileR * 0.2 * ls)
-          ctx.font = `500 ${fontSize}px sans-serif`
-          ctx.textAlign = 'center'
-          ctx.textBaseline = 'top'
-          const textW = ctx.measureText(tile.label).width
-          const padX = 4, padY = 2
-          const pillX = sx - textW / 2 - padX
-          const pillY = sy - tileR * 0.62
-          ctx.fillStyle = 'rgba(0,0,0,0.72)'
-          ctx.fillRect(pillX, pillY, textW + padX * 2, fontSize + padY * 2)
-          ctx.fillStyle = biome.textColor
-          ctx.fillText(tile.label, sx, pillY + padY)
+          pendingLabels.push({ sx, sy, label: tile.label, textColor: biome.textColor })
         }
       }
+    }
+
+    // ── Second pass: draw all labels above every tile ─────────────
+    const ls = labelSizeRef.current
+    for (const { sx, sy, label, textColor } of pendingLabels) {
+      const fontSize = Math.min(11 * ls, tileR * 0.2 * ls)
+      ctx.font = `500 ${fontSize}px sans-serif`
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'top'
+      const textW = ctx.measureText(label).width
+      const padX = 4, padY = 2
+      const pillX = sx - textW / 2 - padX
+      const pillY = sy - tileR * 0.62
+      ctx.fillStyle = 'rgba(0,0,0,0.72)'
+      ctx.fillRect(pillX, pillY, textW + padX * 2, fontSize + padY * 2)
+      ctx.fillStyle = textColor
+      ctx.fillText(label, sx, pillY + padY)
     }
   }
 

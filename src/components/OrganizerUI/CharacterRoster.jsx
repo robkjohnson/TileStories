@@ -234,11 +234,36 @@ function CharacterCard({ char, campaign, onOpen, onDelete, deleteConfirm, onCanc
 
   return (
     <div className={styles.rosterCard} style={{ borderLeftColor: colors.ring }} onClick={onOpen}>
-      {/* Avatar */}
-      <div className={styles.rosterAvatar} style={{ background: colors.bg, borderColor: colors.ring }}>
+      {/* Avatar — draggable token */}
+      <div
+        className={styles.rosterAvatar}
+        style={{ background: colors.bg, borderColor: colors.ring, cursor: 'grab' }}
+        draggable
+        onDragStart={e => {
+          e.stopPropagation()
+          const size = 44
+          const cv = document.createElement('canvas')
+          cv.width = cv.height = size
+          cv.style.cssText = 'position:fixed;top:-300px;pointer-events:none'
+          const ctx = cv.getContext('2d')
+          ctx.beginPath()
+          ctx.arc(size / 2, size / 2, size / 2 - 2, 0, Math.PI * 2)
+          ctx.fillStyle = colors.bg; ctx.fill()
+          ctx.strokeStyle = colors.ring; ctx.lineWidth = 3; ctx.stroke()
+          ctx.font = `${Math.round(size * 0.48)}px sans-serif`
+          ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
+          ctx.fillStyle = colors.ring
+          ctx.fillText(tokenDisplay(char), size / 2, size / 2 + 1)
+          document.body.appendChild(cv)
+          e.dataTransfer.setDragImage(cv, size / 2, size / 2)
+          setTimeout(() => document.body.removeChild(cv), 0)
+          e.dataTransfer.setData('application/tilestories-entity', JSON.stringify({ id: char.id, kind: 'character' }))
+          e.dataTransfer.effectAllowed = 'copy'
+        }}
+      >
         {char.portrait
-          ? <img src={char.portrait} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
-          : <span style={{ fontSize: 18 }}>{tokenDisplay(char)}</span>
+          ? <img src={char.portrait} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%', pointerEvents: 'none' }} />
+          : <span style={{ fontSize: 18, pointerEvents: 'none' }}>{tokenDisplay(char)}</span>
         }
       </div>
 
@@ -317,8 +342,32 @@ function CreatureCard({ creature, campaign, onOpen, onDelete, deleteConfirm, onC
 
   return (
     <div className={styles.rosterCard} style={{ borderLeftColor: color }} onClick={onOpen}>
-      <div className={styles.rosterAvatar} style={{ background: color + '22', borderColor: color }}>
-        <span style={{ fontSize: 18 }}>{creature.emoji || '🐾'}</span>
+      <div
+        className={styles.rosterAvatar}
+        style={{ background: color + '22', borderColor: color, cursor: 'grab' }}
+        draggable
+        onDragStart={e => {
+          e.stopPropagation()
+          const size = 44
+          const cv = document.createElement('canvas')
+          cv.width = cv.height = size
+          cv.style.cssText = 'position:fixed;top:-300px;pointer-events:none'
+          const ctx = cv.getContext('2d')
+          ctx.beginPath()
+          ctx.arc(size / 2, size / 2, size / 2 - 2, 0, Math.PI * 2)
+          ctx.fillStyle = color + '22'; ctx.fill()
+          ctx.strokeStyle = color; ctx.lineWidth = 3; ctx.stroke()
+          ctx.font = `${Math.round(size * 0.48)}px sans-serif`
+          ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
+          ctx.fillText(creature.emoji || '🐾', size / 2, size / 2 + 1)
+          document.body.appendChild(cv)
+          e.dataTransfer.setDragImage(cv, size / 2, size / 2)
+          setTimeout(() => document.body.removeChild(cv), 0)
+          e.dataTransfer.setData('application/tilestories-entity', JSON.stringify({ id: creature.id, kind: 'creature' }))
+          e.dataTransfer.effectAllowed = 'copy'
+        }}
+      >
+        <span style={{ fontSize: 18, pointerEvents: 'none' }}>{creature.emoji || '🐾'}</span>
       </div>
 
       <div className={styles.rosterInfo}>

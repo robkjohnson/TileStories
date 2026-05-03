@@ -110,6 +110,7 @@ export default function TileTypeManager() {
   const { campaign, addTileType, updateTileType, deleteTileType, setActiveBiome } = useStore()
   const [editingId, setEditingId] = useState(null)
   const [draft, setDraft] = useState(null)
+  const [statusEffectsDraft, setStatusEffectsDraft] = useState('')
   const [showPresets, setShowPresets] = useState(false)
 
   const tileTypes = campaign?.tileTypes || {}
@@ -126,8 +127,8 @@ export default function TileTypeManager() {
     e.target.value = ''
   }
 
-  function startEdit(tt) { setEditingId(tt.id); setDraft({ ...tt }) }
-  function cancelEdit() { setEditingId(null); setDraft(null) }
+  function startEdit(tt) { setEditingId(tt.id); setDraft({ ...tt }); setStatusEffectsDraft((tt.statusEffects || []).join(', ')) }
+  function cancelEdit() { setEditingId(null); setDraft(null); setStatusEffectsDraft('') }
 
   function saveEdit() {
     if (!draft) return
@@ -253,8 +254,9 @@ export default function TileTypeManager() {
               <label className={styles.fieldLabel}>Status effects (comma-separated)
                 <input
                   className={styles.nameInput}
-                  value={(draft.statusEffects || []).join(', ')}
-                  onChange={e => patchDraft('statusEffects', e.target.value.split(',').map(s => s.trim()).filter(Boolean))}
+                  value={statusEffectsDraft}
+                  onChange={e => setStatusEffectsDraft(e.target.value)}
+                  onBlur={e => patchDraft('statusEffects', e.target.value.split(',').map(s => s.trim()).filter(Boolean))}
                   placeholder="poisoned, slowed…"
                 />
               </label>

@@ -131,6 +131,13 @@ function DebouncedAbilityInput({ storeValue, onUpdate, ...rest }) {
 function AbilityEditor({ template: tmpl, onUpdate, onDelete, deleteConfirm, onCancelDelete }) {
   const [diceError, setDiceError] = useState(false)
   const [diceError2, setDiceError2] = useState(false)
+  const [conditionsDraft, setConditionsDraft] = useState((tmpl.conditions || []).join(', '))
+  const [tagsDraft, setTagsDraft] = useState((tmpl.tags || []).join(', '))
+
+  React.useEffect(() => {
+    setConditionsDraft((tmpl.conditions || []).join(', '))
+    setTagsDraft((tmpl.tags || []).join(', '))
+  }, [tmpl.id])
 
   function handleDiceChange(key, val, setErr) {
     setErr(!isValidDice(val))
@@ -332,16 +339,18 @@ function AbilityEditor({ template: tmpl, onUpdate, onDelete, deleteConfirm, onCa
       <div className={styles.editorField}>
         <label>Conditions applied <span className={styles.subLabel}>(comma-separated)</span></label>
         <input type="text"
-          value={(tmpl.conditions || []).join(', ')}
-          onChange={e => onUpdate({ conditions: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })}
+          value={conditionsDraft}
+          onChange={e => setConditionsDraft(e.target.value)}
+          onBlur={e => onUpdate({ conditions: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })}
           placeholder="poisoned, frightened, paralyzed…" />
       </div>
 
       <div className={styles.editorField}>
         <label>Tags <span className={styles.subLabel}>(comma-separated, used for search)</span></label>
         <input type="text"
-          value={(tmpl.tags || []).join(', ')}
-          onChange={e => onUpdate({ tags: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })}
+          value={tagsDraft}
+          onChange={e => setTagsDraft(e.target.value)}
+          onBlur={e => onUpdate({ tags: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })}
           placeholder="cryptid, fire, signature, ranged…" />
       </div>
 

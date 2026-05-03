@@ -394,6 +394,8 @@ function DisplayMapView({ map, campaign, session }) {
     const containers = Object.values(campaign?.containers || {})
       .filter(c => c.mapId === map.id && c.discovered)
 
+    const pendingLabels = []
+
     for (let q = 0; q < map.cols; q++) {
       for (let r = 0; r < map.rows; r++) {
         const key = `${q},${r}`
@@ -433,22 +435,27 @@ function DisplayMapView({ map, campaign, session }) {
         // Tokens — display shows same as players (player/key/revealed only, no organizer dots)
         drawTileTokens(ctx, sx, sy, tileR, tile, characters, false)
 
-        // Label — drawn last so it sits above tokens
+        // Collect label for second pass so it renders above all tile bodies
         if (tile.label && tile.showLabel && tileR > 18) {
-          const fontSize = Math.min(13 * displayLabelSize, tileR * 0.22 * displayLabelSize)
-          ctx.font = `600 ${fontSize}px sans-serif`
-          ctx.textAlign = 'center'
-          ctx.textBaseline = 'top'
-          const tw = ctx.measureText(tile.label).width
-          const padX = 4, padY = 2
-          const pillX = sx - tw / 2 - padX
-          const pillY = sy - tileR * 0.62
-          ctx.fillStyle = 'rgba(0,0,0,0.72)'
-          ctx.fillRect(pillX, pillY, tw + padX * 2, fontSize + padY * 2)
-          ctx.fillStyle = biome.textColor
-          ctx.fillText(tile.label, sx, pillY + padY)
+          pendingLabels.push({ sx, sy, label: tile.label, textColor: biome.textColor })
         }
       }
+    }
+
+    // ── Second pass: draw all labels above every tile ─────────────
+    for (const { sx, sy, label, textColor } of pendingLabels) {
+      const fontSize = Math.min(13 * displayLabelSize, tileR * 0.22 * displayLabelSize)
+      ctx.font = `600 ${fontSize}px sans-serif`
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'top'
+      const tw = ctx.measureText(label).width
+      const padX = 4, padY = 2
+      const pillX = sx - tw / 2 - padX
+      const pillY = sy - tileR * 0.62
+      ctx.fillStyle = 'rgba(0,0,0,0.72)'
+      ctx.fillRect(pillX, pillY, tw + padX * 2, fontSize + padY * 2)
+      ctx.fillStyle = textColor
+      ctx.fillText(label, sx, pillY + padY)
     }
 
     // Map name watermark

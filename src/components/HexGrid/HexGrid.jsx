@@ -14,6 +14,9 @@ export default function HexGrid() {
   const dragOrigin = useRef(null)
   const painting = useRef(false)
   const portraitCache = useRef({})
+  const dropTargetHex = useRef(null)
+  const pendingSelect = useRef(undefined)   // undefined = no pending; null/{q,r} = has pending
+  const mouseDownPos = useRef(null)
 
   const store = useStore()
   const storeRef = useRef(store)
@@ -48,6 +51,8 @@ export default function HexGrid() {
     const BASE_SIZE = isSquare ? SQUARE_SIZE : HEX_SIZE
     const sz = BASE_SIZE * zoom
     const tileR = isSquare ? sz / 2 : sz
+
+    const pendingLabels = []
 
     for (let q = 0; q < activeMap.cols; q++) {
       for (let r = 0; r < activeMap.rows; r++) {
@@ -399,23 +404,45 @@ export default function HexGrid() {
           ctx.fill()
         }
 
-        // ── Label — drawn last so it sits above tokens, containers, and event dots ──
-        const showThisLabel = tile.label && (tile.showLabel || showAllLabels)
-        if (showThisLabel && tileR > 18) {
-          const fontSize = Math.min(11 * labelSize, tileR * 0.2 * labelSize)
-          ctx.font = `500 ${fontSize}px sans-serif`
-          ctx.textAlign = 'center'
-          ctx.textBaseline = 'top'
-          const textW = ctx.measureText(tile.label).width
-          const padX = 4, padY = 2
-          const pillX = sx - textW / 2 - padX
-          const pillY = sy - tileR * 0.62
-          ctx.fillStyle = 'rgba(0,0,0,0.72)'
-          ctx.fillRect(pillX, pillY, textW + padX * 2, fontSize + padY * 2)
-          ctx.fillStyle = biome.textColor
-          ctx.fillText(tile.label, sx, pillY + padY)
+        // Collect label for second pass so it renders above all tile bodies
+        if (tile.label && (tile.showLabel || showAllLabels) && tileR > 18) {
+          pendingLabels.push({ sx, sy, label: tile.label, textColor: biome.textColor })
         }
       }
+    }
+
+    // ── Second pass: draw all labels above every tile ─────────────
+    for (const { sx, sy, label, textColor } of pendingLabels) {
+      const fontSize = Math.min(11 * labelSize, tileR * 0.2 * labelSize)
+      ctx.font = `500 ${fontSize}px sans-serif`
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'top'
+      const textW = ctx.measureText(label).width
+      const padX = 4, padY = 2
+      const pillX = sx - textW / 2 - padX
+      const pillY = sy - tileR * 0.62
+      ctx.fillStyle = 'rgba(0,0,0,0.72)'
+      ctx.fillRect(pillX, pillY, textW + padX * 2, fontSize + padY * 2)
+      ctx.fillStyle = textColor
+      ctx.fillText(label, sx, pillY + padY)
+    }
+
+    // Drop-target highlight — drawn while a roster card is being dragged over a tile
+    const dt = dropTargetHex.current
+    if (dt) {
+      const dtWp = isSquare ? squareToPixel(dt.q, dt.r, BASE_SIZE) : hexToPixel(dt.q, dt.r, HEX_SIZE)
+      const dtSx = dtWp.x * zoom + camX
+      const dtSy = dtWp.y * zoom + camY
+      const dtPts = isSquare ? squareCorners(dtSx, dtSy, sz) : hexCorners(dtSx, dtSy, sz)
+      ctx.beginPath()
+      ctx.moveTo(dtPts[0].x, dtPts[0].y)
+      for (let i = 1; i < dtPts.length; i++) ctx.lineTo(dtPts[i].x, dtPts[i].y)
+      ctx.closePath()
+      ctx.fillStyle = 'rgba(123, 196, 127, 0.25)'
+      ctx.fill()
+      ctx.strokeStyle = '#7bc47f'
+      ctx.lineWidth = 3
+      ctx.stroke()
     }
   }
 
@@ -469,7 +496,31 @@ export default function HexGrid() {
       })
     }
 
+    function onTouchStart(e) {
+      if (e.touches.length === 1) {
+        const { camera } = storeRef.current
+        dragging.current = true
+        dragOrigin.current = { x: e.touches[0].clientX - camera.x, y: e.touches[0].clientY - camera.y }
+      }
+    }
+
+    function onTouchMove(e) {
+      if (dragging.current && dragOrigin.current && e.touches.length === 1) {
+        e.preventDefault()
+        const { updateCamera } = storeRef.current
+        updateCamera({ x: e.touches[0].clientX - dragOrigin.current.x, y: e.touches[0].clientY - dragOrigin.current.y })
+      }
+    }
+
+    function onTouchEnd() {
+      dragging.current = false
+      dragOrigin.current = null
+    }
+
     canvas.addEventListener('wheel', onWheel, { passive: false })
+    canvas.addEventListener('touchstart', onTouchStart, { passive: true })
+    canvas.addEventListener('touchmove', onTouchMove, { passive: false })
+    canvas.addEventListener('touchend', onTouchEnd)
     resize()
     const ro = new ResizeObserver(resize)
     ro.observe(container)
@@ -477,6 +528,9 @@ export default function HexGrid() {
     return () => {
       ro.disconnect()
       canvas.removeEventListener('wheel', onWheel)
+      canvas.removeEventListener('touchstart', onTouchStart)
+      canvas.removeEventListener('touchmove', onTouchMove)
+      canvas.removeEventListener('touchend', onTouchEnd)
     }
   }, []) // eslint-disable-line
 
@@ -532,8 +586,10 @@ export default function HexGrid() {
     }
 
     if (tool === 'select') {
-      setSelectedTile(hex)
-      if (hex) setInspectorOpen(true)
+      // Defer selection to mouseup so left-drag can pan instead
+      mouseDownPos.current = { x: e.clientX, y: e.clientY }
+      pendingSelect.current = hex
+      dragOrigin.current = { x: e.clientX - camera.x, y: e.clientY - camera.y }
     } else {
       painting.current = true
       if (hex) {
@@ -545,6 +601,15 @@ export default function HexGrid() {
 
   function onMouseMove(e) {
     const { updateCamera, tool, activeBiome, setTileBiome, eraseTile } = storeRef.current
+    // Promote left-click hold into a pan once past movement threshold
+    if (!dragging.current && mouseDownPos.current && e.buttons === 1) {
+      const dx = e.clientX - mouseDownPos.current.x
+      const dy = e.clientY - mouseDownPos.current.y
+      if (Math.hypot(dx, dy) > 4) {
+        dragging.current = true
+        pendingSelect.current = undefined
+      }
+    }
     if (dragging.current && dragOrigin.current) {
       updateCamera({ x: e.clientX - dragOrigin.current.x, y: e.clientY - dragOrigin.current.y })
       return
@@ -561,6 +626,13 @@ export default function HexGrid() {
   }
 
   function onMouseUp() {
+    if (!dragging.current && pendingSelect.current !== undefined) {
+      const { setSelectedTile, setInspectorOpen } = storeRef.current
+      setSelectedTile(pendingSelect.current)
+      if (pendingSelect.current) setInspectorOpen(true)
+    }
+    pendingSelect.current = undefined
+    mouseDownPos.current = null
     dragging.current = false
     painting.current = false
     dragOrigin.current = null
@@ -570,21 +642,60 @@ export default function HexGrid() {
     hoveredTile.current = null
     dragging.current = false
     painting.current = false
+    pendingSelect.current = undefined
+    mouseDownPos.current = null
     draw()
     const el = document.getElementById('hex-coords')
     if (el) el.textContent = '—'
+  }
+
+  function onDragOver(e) {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'copy'
+    const hex = getHex(e.clientX, e.clientY)
+    const prev = dropTargetHex.current
+    // Only redraw when the highlighted tile actually changes
+    if (hex?.q !== prev?.q || hex?.r !== prev?.r) {
+      dropTargetHex.current = hex
+      draw()
+    }
+  }
+
+  function onDragLeave() {
+    dropTargetHex.current = null
+    draw()
+  }
+
+  function onDrop(e) {
+    e.preventDefault()
+    dropTargetHex.current = null
+    const raw = e.dataTransfer.getData('application/tilestories-entity')
+    if (raw) {
+      try {
+        const { id } = JSON.parse(raw)
+        const hex = getHex(e.clientX, e.clientY)
+        if (hex) {
+          const { campaign, placeToken } = storeRef.current
+          placeToken(id, hex.q, hex.r, campaign.activeMapId)
+        }
+      } catch (_) {}
+    }
+    draw()
   }
 
   return (
     <div ref={containerRef} style={{ position: 'absolute', inset: 0, background: '#141618' }}>
       <canvas
         ref={canvasRef}
-        style={{ display: 'block', cursor: store.portalPickMode ? 'crosshair' : store.tileSelectionMode ? 'cell' : store.tool === 'select' ? 'default' : 'crosshair' }}
+        style={{ display: 'block', cursor: store.portalPickMode ? 'crosshair' : store.tileSelectionMode ? 'cell' : store.tool === 'select' ? 'grab' : 'crosshair' }}
         onMouseDown={onMouseDown}
         onMouseMove={onMouseMove}
         onMouseUp={onMouseUp}
         onMouseLeave={onMouseLeave}
         onContextMenu={e => e.preventDefault()}
+        onDragOver={onDragOver}
+        onDragLeave={onDragLeave}
+        onDrop={onDrop}
       />
     </div>
   )
