@@ -131,9 +131,7 @@ function ItemTemplateRow({ template: t, expanded, onToggle, onUpdate, deleteConf
           </div>
 
           <Field label="Tags (comma-separated)">
-            <input type="text" value={(t.tags || []).join(', ')}
-              onChange={e => onUpdate({ tags: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })}
-              placeholder="cryptid-lure, rare, crafted…" />
+            <TagsInput tags={t.tags} onUpdate={onUpdate} placeholder="cryptid-lure, rare, crafted…" />
           </Field>
 
           {/* Granted traits */}
@@ -171,6 +169,30 @@ function DebouncedItemInput({ storeValue, onUpdate, ...rest }) {
 function DebouncedItemTextarea({ storeValue, onUpdate, ...rest }) {
   const field = useDebouncedField(storeValue, onUpdate)
   return <textarea rows={3} style={{ resize: 'vertical' }} {...field} {...rest} />
+}
+
+// Keeps a local string draft so commas can be typed freely; commits the parsed
+// array to the store only when the field loses focus.
+function TagsInput({ tags, onUpdate, ...rest }) {
+  const [draft, setDraft] = useState((tags || []).join(', '))
+
+  // Sync draft when the item being edited changes externally (e.g. switching items)
+  const tagsKey = (tags || []).join(',')
+  React.useEffect(() => { setDraft((tags || []).join(', ')) }, [tagsKey]) // eslint-disable-line
+
+  function commit(value) {
+    onUpdate({ tags: value.split(',').map(s => s.trim()).filter(Boolean) })
+  }
+
+  return (
+    <input
+      type="text"
+      value={draft}
+      onChange={e => setDraft(e.target.value)}
+      onBlur={e => commit(e.target.value)}
+      {...rest}
+    />
+  )
 }
 
 function GrantedTraitsEditor({ traits, onChange }) {
