@@ -3,6 +3,7 @@ import { useDebouncedField } from '../../utils/useDebouncedStore'
 import { useStore } from '../../store/useStore'
 import { getTileType } from '../../utils/biomes'
 import { tokenColor, tokenDisplay } from '../CharacterSheet/CharacterSheet'
+import { StatusPill } from '../EffectSystem/StatusLibrary'
 import EventEditor from '../EventEditor/EventEditor'
 import { TileContainers } from '../ItemSystem/ContainerPanel'
 import { getAnnotation, setAnnotation, clearAnnotation, PIN_COLORS } from '../../utils/playerAnnotations'
@@ -10,8 +11,19 @@ import { resolveStoryboardImages } from '../../utils/imageStorage'
 import styles from './Sidebar.module.css'
 
 export default function TileDetail({ onOpenEntity }) {
-  const { selectedTile, getTile, setTileField, setTileBiome, campaign } = useStore()
+  const { selectedTile, getTile, setTileField, setTileBiome, campaign, removeStatusFromTile } = useStore()
   const tileBgInputRef = useRef(null)
+  const [tileTypeOpen, setTileTypeOpen] = useState(false)
+  const tileTypeRef = useRef(null)
+
+  React.useEffect(() => {
+    if (!tileTypeOpen) return
+    function onDown(e) {
+      if (tileTypeRef.current && !tileTypeRef.current.contains(e.target)) setTileTypeOpen(false)
+    }
+    document.addEventListener('mousedown', onDown)
+    return () => document.removeEventListener('mousedown', onDown)
+  }, [tileTypeOpen])
 
   if (!selectedTile) {
     return (
@@ -81,19 +93,34 @@ export default function TileDetail({ onOpenEntity }) {
         </div>
       </div>
 
-      {/* Quick tile type picker */}
-      <div className={styles.section}>
-        <div className={styles.sectionLabel}>Tile Type</div>
-        <div className={styles.biomeGrid}>
-          {Object.values(campaign?.tileTypes || {}).map(tt => (
-            <button key={tt.id}
-              className={`${styles.biomeCell} ${tt.id === tile.biome || (!tile.biome && tt.id === 'grassland') ? styles.biomeCellActive : ''}`}
-              style={{ background: tt.color }} title={tt.name}
-              onClick={() => setTileBiome(selectedTile.q, selectedTile.r, tt.id)}>
-              {tt.icon}
-            </button>
-          ))}
-        </div>
+      {/* Tile type change button + dropdown */}
+      <div className={styles.section} ref={tileTypeRef} style={{ position: 'relative' }}>
+        <button
+          className={styles.changeTileTypeBtn}
+          onClick={() => setTileTypeOpen(o => !o)}
+        >
+          <span>{tileType.icon}</span>
+          <span style={{ flex: 1, textAlign: 'left' }}>Change Tile Type</span>
+          <span style={{ fontSize: 9, opacity: 0.6 }}>{tileTypeOpen ? '▲' : '▼'}</span>
+        </button>
+        {tileTypeOpen && (
+          <div className={styles.tileTypeDropdown}>
+            {Object.values(campaign?.tileTypes || {}).map(tt => {
+              const isActive = tt.id === tile.biome || (!tile.biome && tt.id === 'grassland')
+              return (
+                <button
+                  key={tt.id}
+                  className={`${styles.tileTypeOption} ${isActive ? styles.tileTypeOptionActive : ''}`}
+                  onClick={() => { setTileBiome(selectedTile.q, selectedTile.r, tt.id); setTileTypeOpen(false) }}
+                >
+                  <span className={styles.tileTypeOptionDot} style={{ background: tt.color }}>{tt.icon}</span>
+                  <span>{tt.name}</span>
+                  {isActive && <span style={{ marginLeft: 'auto', fontSize: 10, color: 'var(--accent)' }}>✓</span>}
+                </button>
+              )
+            })}
+          </div>
+        )}
       </div>
 
       {/* Tokens */}
@@ -105,6 +132,20 @@ export default function TileDetail({ onOpenEntity }) {
       <div className={styles.section}>
         <div className={styles.sectionLabel}>Containers</div>
         <TileContainers tileKey={`${selectedTile.q},${selectedTile.r}`} />
+      </div>
+
+      {/* Active Statuses */}
+      <div className={styles.section}>
+        <div className={styles.sectionLabel}>Active Statuses</div>
+        {(tile.activeStatuses || []).length === 0
+          ? <div className={styles.emptyHint}>No active statuses on this tile.</div>
+          : <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {(tile.activeStatuses || []).map(({ statusId }) => (
+                <StatusPill key={statusId} statusId={statusId} campaign={campaign}
+                  onRemove={() => removeStatusFromTile(campaign.activeMapId, `${selectedTile.q},${selectedTile.r}`, statusId)} />
+              ))}
+            </div>
+        }
       </div>
 
       {/* Events */}

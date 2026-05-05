@@ -26,3 +26,20 @@ export function formatDamage(dice, type, bonus) {
 export function isValidDice(val) {
   return /^\d*d\d+$/i.test((val || '').trim())
 }
+
+// Validates dice expressions with optional bonus, e.g. "2d6", "1d8+3", "d4-1"
+export function isValidDiceExpr(val) {
+  return /^\d*d\d+([+-]\d+)?$/i.test((val || '').trim())
+}
+
+// Rolls a dice expression like "2d6", "1d8+3", "d4"
+export function rollDiceExpr(expr) {
+  const match = /^(\d*)d(\d+)([+-]\d+)?$/i.exec((expr || '').trim())
+  if (!match) return 0
+  const count = parseInt(match[1] || '1')
+  const sides = parseInt(match[2])
+  const bonus = parseInt(match[3] || '0')
+  let total = bonus
+  for (let i = 0; i < count; i++) total += Math.floor(Math.random() * sides) + 1
+  return total
+}

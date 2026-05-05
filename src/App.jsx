@@ -6,6 +6,7 @@ import Toolbar from './components/Toolbar/Toolbar'
 import MapTabs from './components/MapTabs/MapTabs'
 import NewCampaignModal from './components/Modal/NewCampaignModal'
 import OverlayBar from './components/EventEditor/OverlayBar'
+import EffectExecutor from './components/EffectSystem/EffectExecutor'
 import MenuScreen from './components/CampaignLibrary/MenuScreen'
 import SaveStatus from './components/CampaignLibrary/SaveStatus'
 import useAutoSave from './utils/useAutoSave'
@@ -25,7 +26,7 @@ export default function App() {
   const [rightCollapsed, setRightCollapsed] = useState(false)
   const { lastSaved, saving, saveNow } = useAutoSave(campaign)
 
-  const { session, setConnected, handleMessage, setOnCampaignUpdate, setOnMoveApplied, setOnResolveBroadcastStoryboard, setOnTakeItem, setOnUpdatePortrait } = useSessionStore()
+  const { session, setConnected, handleMessage, setOnCampaignUpdate, setOnMoveApplied, setOnResolveBroadcastStoryboard, setOnTakeItem, setOnUpdatePortrait, setOnPlayerUseEffect } = useSessionStore()
   const { send: sessionSend } = useGameSocket((msg) => {
     if (msg.type === 'CONNECTED') setConnected(true)
     handleMessage(msg)
@@ -99,6 +100,13 @@ export default function App() {
     return () => setOnUpdatePortrait(null)
   }, [setOnUpdatePortrait])
 
+  useEffect(() => {
+    setOnPlayerUseEffect((msg) => {
+      useStore.getState().executeEffectFromPlayer(msg)
+    })
+    return () => setOnPlayerUseEffect(null)
+  }, [setOnPlayerUseEffect])
+
   function handleCreate(campaignData) {
     setCampaign(campaignData)
     setShowMenu(false)
@@ -142,6 +150,7 @@ export default function App() {
           }
           {campaign && <ZoomControls />}
           {campaign && <OverlayBar />}
+          {campaign && <EffectExecutor />}
         </div>
 
         {/* Right sidebar */}

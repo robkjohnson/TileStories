@@ -22,11 +22,13 @@ export const useSessionStore = create((set, get) => ({
   onResolveBroadcastStoryboard: null,
   onTakeItem: null,
   onUpdatePortrait: null,
+  onPlayerUseEffect: null,
   setOnCampaignUpdate: (fn) => set({ onCampaignUpdate: fn }),
   setOnMoveApplied: (fn) => set({ onMoveApplied: fn }),
   setOnResolveBroadcastStoryboard: (fn) => set({ onResolveBroadcastStoryboard: fn }),
   setOnTakeItem: (fn) => set({ onTakeItem: fn }),
   setOnUpdatePortrait: (fn) => set({ onUpdatePortrait: fn }),
+  setOnPlayerUseEffect: (fn) => set({ onPlayerUseEffect: fn }),
   setServerInfo: (info) => set({ serverInfo: info }),
 
   handleMessage(msg) {
@@ -72,6 +74,10 @@ export const useSessionStore = create((set, get) => ({
 
       case 'UPDATE_CHARACTER_PORTRAIT':
         get().onUpdatePortrait?.(msg)
+        break
+
+      case 'PLAYER_USE_EFFECT':
+        get().onPlayerUseEffect?.(msg)
         break
 
       case 'MOVE_APPLIED':

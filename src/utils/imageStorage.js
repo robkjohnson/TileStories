@@ -15,7 +15,11 @@ async function getDb() {
     req.onupgradeneeded = e => {
       e.target.result.createObjectStore(STORE, { keyPath: 'hash' })
     }
-    req.onsuccess = e => { db = e.target.result; resolve(db) }
+    req.onsuccess = e => {
+      db = e.target.result
+      db.onclose = () => { db = null }  // reset if browser closes the connection
+      resolve(db)
+    }
     req.onerror = () => reject(req.error)
   })
 }
@@ -33,12 +37,14 @@ export async function storeImage(dataUrl) {
   try {
     const database = await getDb()
     return new Promise((resolve) => {
-      const tx = database.transaction(STORE, 'readwrite')
-      tx.objectStore(STORE).put({ hash, data: dataUrl })
-      tx.oncomplete = () => resolve(hash)
-      tx.onerror = () => resolve(dataUrl) // fallback: return raw dataUrl
+      try {
+        const tx = database.transaction(STORE, 'readwrite')
+        tx.objectStore(STORE).put({ hash, data: dataUrl })
+        tx.oncomplete = () => resolve(hash)
+        tx.onerror = () => resolve(dataUrl)
+      } catch { resolve(dataUrl) }  // fallback if transaction can't be created
     })
-  } catch { return dataUrl }
+  } catch { db = null; return dataUrl }
 }
 
 export async function loadImage(hashOrDataUrl) {
@@ -48,12 +54,14 @@ export async function loadImage(hashOrDataUrl) {
   try {
     const database = await getDb()
     return new Promise((resolve) => {
-      const tx = database.transaction(STORE, 'readonly')
-      const req = tx.objectStore(STORE).get(hashOrDataUrl)
-      req.onsuccess = () => resolve(req.result?.data || null)
-      req.onerror = () => resolve(null)
+      try {
+        const tx = database.transaction(STORE, 'readonly')
+        const req = tx.objectStore(STORE).get(hashOrDataUrl)
+        req.onsuccess = () => resolve(req.result?.data || null)
+        req.onerror = () => resolve(null)
+      } catch { resolve(null) }
     })
-  } catch { return null }
+  } catch { db = null; return null }
 }
 
 export async function deleteImage(hash) {
@@ -88,7 +96,7 @@ export async function resolveStoryboardImages(sb) {
     if (!val) return val
     if (val.startsWith('data:')) return val   // already a dataUrl
     const fromDb = await loadImage(val)
-    return fromDb || val                       // fallback to hash if not found
+    return fromDb || null                      // null if not found — never send a bare hash to remote clients
   }
 
   return {

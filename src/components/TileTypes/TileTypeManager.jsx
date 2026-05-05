@@ -111,6 +111,7 @@ export default function TileTypeManager() {
   const [editingId, setEditingId] = useState(null)
   const [draft, setDraft] = useState(null)
   const [statusEffectsDraft, setStatusEffectsDraft] = useState('')
+  const [traitsDraft, setTraitsDraft] = useState('')
   const [showPresets, setShowPresets] = useState(false)
 
   const tileTypes = campaign?.tileTypes || {}
@@ -127,8 +128,8 @@ export default function TileTypeManager() {
     e.target.value = ''
   }
 
-  function startEdit(tt) { setEditingId(tt.id); setDraft({ ...tt }); setStatusEffectsDraft((tt.statusEffects || []).join(', ')) }
-  function cancelEdit() { setEditingId(null); setDraft(null); setStatusEffectsDraft('') }
+  function startEdit(tt) { setEditingId(tt.id); setDraft({ ...tt }); setStatusEffectsDraft((tt.statusEffects || []).join(', ')); setTraitsDraft((tt.traits || []).join(', ')) }
+  function cancelEdit() { setEditingId(null); setDraft(null); setStatusEffectsDraft(''); setTraitsDraft('') }
 
   function saveEdit() {
     if (!draft) return
@@ -258,6 +259,16 @@ export default function TileTypeManager() {
                   onChange={e => setStatusEffectsDraft(e.target.value)}
                   onBlur={e => patchDraft('statusEffects', e.target.value.split(',').map(s => s.trim()).filter(Boolean))}
                   placeholder="poisoned, slowed…"
+                />
+              </label>
+
+              <label className={styles.fieldLabel}>Traits (comma-separated)
+                <input
+                  className={styles.nameInput}
+                  value={traitsDraft}
+                  onChange={e => setTraitsDraft(e.target.value)}
+                  onBlur={e => patchDraft('traits', e.target.value.split(',').map(s => s.trim()).filter(Boolean))}
+                  placeholder="fire, water, sacred…"
                 />
               </label>
 

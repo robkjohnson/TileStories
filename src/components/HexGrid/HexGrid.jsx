@@ -1,6 +1,7 @@
 import React, { useRef, useEffect } from 'react'
 import { useStore } from '../../store/useStore'
 import { hexToPixel, hexCorners, pixelToHex, gridBounds, HEX_SIZE, squareToPixel, squareCorners, pixelToSquare, squareGridBounds, SQUARE_SIZE } from '../../utils/hexMath'
+import { rotateAoePattern } from '../../store/useStore'
 import { getTileType } from '../../utils/biomes'
 import { shouldShowEventDot, shouldShowOverlay } from '../../utils/visibility'
 import { loadImage } from '../../utils/imageStorage'
@@ -31,7 +32,7 @@ export default function HexGrid() {
     const H = canvas.height
     if (!W || !H) return
 
-    const { campaign, camera, showGrid, showCoords, showAllLabels, labelSize, selectedTile, portalPickMode } = storeRef.current
+    const { campaign, camera, showGrid, showCoords, showAllLabels, labelSize, statusIconSize, selectedTile, portalPickMode } = storeRef.current
 
     // Load player annotations for this map (from localStorage)
     const playerAnnotations = campaign
@@ -395,6 +396,28 @@ export default function HexGrid() {
           }
         }
 
+        // Status icons — small emoji cluster at top-right of tile
+        const tileStatuses = tile.activeStatuses || []
+        if (tileStatuses.length > 0 && tileR > 10) {
+          const sis = statusIconSize ?? 1
+          const iconSize = Math.max(7, tileR * 0.2 * sis)
+          ctx.font = `${iconSize}px sans-serif`
+          ctx.textAlign = 'center'
+          ctx.textBaseline = 'middle'
+          const count = Math.min(tileStatuses.length, 3)
+          const startX = sx + tileR * 0.55 - (count - 1) * iconSize * 0.55
+          const iconY = sy - tileR * 0.62
+          tileStatuses.slice(0, 3).forEach((s, i) => {
+            const status = campaign?.statuses?.[s.statusId]
+            if (status?.icon) ctx.fillText(status.icon, startX + i * iconSize * 1.1, iconY)
+          })
+          if (tileStatuses.length > 3) {
+            ctx.font = `600 ${Math.max(6, iconSize * 0.7)}px sans-serif`
+            ctx.fillStyle = 'rgba(200,169,110,0.9)'
+            ctx.fillText(`+${tileStatuses.length - 3}`, startX + 3 * iconSize * 1.1, iconY)
+          }
+        }
+
         // Event dot — only show if viewer can see at least one event on this tile
         const { viewerMode, viewerTraits } = storeRef.current
         if (shouldShowEventDot(tile, viewerMode, viewerTraits)) {
@@ -425,6 +448,52 @@ export default function HexGrid() {
       ctx.fillRect(pillX, pillY, textW + padX * 2, fontSize + padY * 2)
       ctx.fillStyle = textColor
       ctx.fillText(label, sx, pillY + padY)
+    }
+
+    // Effect mode — highlight selected tiles and AoE preview
+    const { effectMode } = storeRef.current
+    if (effectMode) {
+      const effect = storeRef.current.campaign?.effects?.[effectMode.effectId]
+      const { selectedTiles } = effectMode
+
+      for (const { q: eq, r: er } of selectedTiles) {
+        const ewp = isSquare ? squareToPixel(eq, er, BASE_SIZE) : hexToPixel(eq, er, HEX_SIZE)
+        const esx = ewp.x * zoom + camX
+        const esy = ewp.y * zoom + camY
+        const ePts = isSquare ? squareCorners(esx, esy, sz) : hexCorners(esx, esy, sz)
+        ctx.beginPath()
+        ctx.moveTo(ePts[0].x, ePts[0].y)
+        for (let i = 1; i < ePts.length; i++) ctx.lineTo(ePts[i].x, ePts[i].y)
+        ctx.closePath()
+        ctx.fillStyle = 'rgba(91,155,213,0.30)'
+        ctx.fill()
+        ctx.strokeStyle = '#5b9bd5'
+        ctx.lineWidth = 2.5
+        ctx.stroke()
+      }
+
+      if (effect?.targetType === 'tile_aoe' && selectedTiles.length > 0 && effect.aoePattern?.length > 0) {
+        const root = selectedTiles[0]
+        const rotated = rotateAoePattern(effect.aoePattern, effectMode.aoeRotation || 0, isSquare)
+        for (const { dq, dr } of rotated) {
+          const pq = root.q + dq
+          const pr = root.r + dr
+          if (pq < 0 || pr < 0 || pq >= activeMap.cols || pr >= activeMap.rows) continue
+          const pwp = isSquare ? squareToPixel(pq, pr, BASE_SIZE) : hexToPixel(pq, pr, HEX_SIZE)
+          const psx = pwp.x * zoom + camX
+          const psy = pwp.y * zoom + camY
+          const pPts = isSquare ? squareCorners(psx, psy, sz) : hexCorners(psx, psy, sz)
+          ctx.beginPath()
+          ctx.moveTo(pPts[0].x, pPts[0].y)
+          for (let i = 1; i < pPts.length; i++) ctx.lineTo(pPts[i].x, pPts[i].y)
+          ctx.closePath()
+          ctx.fillStyle = 'rgba(91,155,213,0.18)'
+          ctx.fill()
+          ctx.strokeStyle = '#5b9bd5'
+          ctx.lineWidth = 1.5
+          ctx.stroke()
+        }
+      }
     }
 
     // Drop-target highlight — drawn while a roster card is being dragged over a tile
@@ -569,6 +638,20 @@ export default function HexGrid() {
     if (e.button !== 0) return
     const hex = getHex(e.clientX, e.clientY)
 
+    // Effect mode — clicks target tiles
+    const { effectMode, setEffectRootTile, toggleEffectTile } = storeRef.current
+    if (effectMode) {
+      if (hex) {
+        const effect = storeRef.current.campaign?.effects?.[effectMode.effectId]
+        if (effect?.targetType === 'tile_select') {
+          toggleEffectTile(hex.q, hex.r)
+        } else if (effect?.targetType === 'single_tile' || effect?.targetType === 'tile_aoe') {
+          setEffectRootTile(hex.q, hex.r)
+        }
+      }
+      return
+    }
+
     // Portal pick mode — capture tile, switch back to origin map, do NOT select tile normally
     if (portalPickMode) {
       if (hex) {
@@ -687,7 +770,7 @@ export default function HexGrid() {
     <div ref={containerRef} style={{ position: 'absolute', inset: 0, background: '#141618' }}>
       <canvas
         ref={canvasRef}
-        style={{ display: 'block', cursor: store.portalPickMode ? 'crosshair' : store.tileSelectionMode ? 'cell' : store.tool === 'select' ? 'grab' : 'crosshair' }}
+        style={{ display: 'block', cursor: store.effectMode ? 'crosshair' : store.portalPickMode ? 'crosshair' : store.tileSelectionMode ? 'cell' : store.tool === 'select' ? 'grab' : 'crosshair' }}
         onMouseDown={onMouseDown}
         onMouseMove={onMouseMove}
         onMouseUp={onMouseUp}

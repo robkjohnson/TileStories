@@ -1,0 +1,130 @@
+.library { display: flex; flex-direction: column; gap: 8px; }
+
+.toolbar { display: flex; gap: 6px; }
+.search { flex: 1; font-size: 13px; }
+.addBtn {
+  padding: 6px 12px; border-radius: var(--radius-sm);
+  border: 0.5px solid var(--accent-dim); background: transparent;
+  color: var(--accent); font-size: 12px; cursor: pointer; white-space: nowrap;
+}
+.addBtn:hover { background: var(--bg-overlay); }
+
+.empty { font-size: 13px; color: var(--text-muted); font-style: italic; text-align: center; padding: 20px 0; }
+
+.card {
+  background: var(--bg-raised); border: 0.5px solid var(--border);
+  border-radius: var(--radius-sm); overflow: hidden;
+}
+.cardHeader {
+  display: flex; align-items: center; gap: 8px;
+  padding: 9px 12px; cursor: pointer; user-select: none; transition: background 0.1s;
+}
+.cardHeader:hover { background: var(--bg-overlay); }
+.colorDot {
+  width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center; font-size: 13px;
+}
+.cardTitle { flex: 1; min-width: 0; }
+.cardName { font-size: 13px; font-weight: 500; color: var(--text-primary); display: block; }
+.cardMeta { font-size: 11px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chevron { font-size: 9px; color: var(--text-muted); flex-shrink: 0; }
+
+.editor {
+  border-top: 0.5px solid var(--border);
+  padding: 10px; display: flex; flex-direction: column; gap: 10px;
+}
+.editorRow { display: flex; gap: 8px; flex-wrap: wrap; }
+.editorField { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 0; }
+.editorField label {
+  font-size: 11px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-muted);
+}
+.subLabel { text-transform: none; letter-spacing: 0; opacity: 0.8; font-size: 10px; }
+
+.colorRow { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.colorSwatch {
+  width: 20px; height: 20px; border-radius: 50%; cursor: pointer;
+  border: 2px solid transparent; transition: border-color 0.1s;
+}
+.colorSwatchActive { border-color: var(--text-primary); }
+.colorPicker {
+  width: 28px; height: 28px; border: none; background: none;
+  cursor: pointer; padding: 0; border-radius: 4px;
+}
+.pillPreview { margin-left: 4px; }
+
+.targetRow { display: flex; gap: 6px; }
+.targetBtn {
+  flex: 1; padding: 5px 10px; border-radius: var(--radius-sm);
+  border: 0.5px solid var(--border-strong); background: transparent;
+  color: var(--text-secondary); font-size: 12px; cursor: pointer;
+}
+.targetBtn:hover { background: var(--bg-overlay); }
+.targetBtnActive { border-color: var(--accent); color: var(--accent); background: rgba(200,169,110,0.1); }
+
+.modifiersList { display: flex; flex-direction: column; gap: 5px; }
+.modifierRow { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.modifierSelect { font-size: 12px; padding: 3px 6px; flex: 0 0 auto; }
+.modifierValue { width: 60px; font-size: 12px; padding: 3px 6px; text-align: right; }
+.modifierHint { font-size: 10px; color: var(--text-muted); font-style: italic; flex: 1; }
+.modifierRemove {
+  background: none; border: none; cursor: pointer;
+  color: var(--text-muted); font-size: 14px; line-height: 1; padding: 0 2px;
+}
+.modifierRemove:hover { color: #c25a4a; }
+.modifierAddBtn {
+  align-self: flex-start; padding: 3px 8px; border-radius: var(--radius-sm);
+  border: 0.5px dashed var(--border-strong); background: transparent;
+  color: var(--text-muted); font-size: 11px; cursor: pointer; margin-top: 2px;
+}
+.modifierAddBtn:hover { color: var(--accent); border-color: var(--accent-dim); }
+
+.applyToCharsRow { display: flex; align-items: center; gap: 6px; padding: 2px 0; }
+.applyToCharsAdder { display: flex; align-items: center; gap: 6px; }
+
+.lingerBtn {
+  padding: 2px 8px; border-radius: var(--radius-sm); font-size: 10px;
+  border: 0.5px solid var(--border-strong); background: transparent;
+  color: var(--text-muted); cursor: pointer; white-space: nowrap;
+}
+.lingerBtn:hover { border-color: var(--accent-dim); color: var(--accent); }
+.lingerBtnActive { border-color: var(--accent-dim); color: var(--accent); background: rgba(200,169,110,0.1); }
+
+.blocksList { display: flex; flex-direction: column; gap: 4px; }
+.blocksItem {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12px; color: var(--text-secondary); cursor: pointer;
+}
+.blocksItemDot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+.emptyHint { font-size: 11px; color: var(--text-muted); font-style: italic; }
+
+.deleteRow { display: flex; align-items: center; gap: 6px; padding-top: 4px; border-top: 0.5px solid var(--border); }
+.deleteWarning { font-size: 12px; color: var(--text-muted); flex: 1; }
+.deleteBtn {
+  margin-left: auto; padding: 4px 10px; border-radius: var(--radius-sm);
+  border: 0.5px solid var(--border); background: transparent;
+  color: var(--text-muted); font-size: 11px; cursor: pointer;
+}
+.deleteBtn:hover { color: #c25a4a; border-color: #c25a4a; }
+.deleteBtnConfirm {
+  padding: 4px 10px; border-radius: var(--radius-sm);
+  border: none; background: #c25a4a; color: #fff; font-size: 11px; cursor: pointer;
+}
+.deleteBtnCancel {
+  padding: 4px 10px; border-radius: var(--radius-sm);
+  border: 0.5px solid var(--border-strong); background: transparent;
+  color: var(--text-muted); font-size: 11px; cursor: pointer;
+}
+
+/* StatusPill — used across the app */
+.pill {
+  display: inline-flex; align-items: center; gap: 3px;
+  padding: 2px 8px; border-radius: 10px;
+  font-size: 11px; font-weight: 500; white-space: nowrap;
+}
+.pillIcon { font-size: 12px; }
+.pillRemove {
+  background: none; border: none; cursor: pointer;
+  color: inherit; opacity: 0.7; padding: 0 0 0 2px; font-size: 13px; line-height: 1;
+}
+.pillRemove:hover { opacity: 1; }

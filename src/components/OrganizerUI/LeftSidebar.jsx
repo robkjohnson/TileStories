@@ -6,6 +6,8 @@ import AbilityLibrary from '../AbilitySystem/AbilityLibrary'
 import ItemLibrary from '../ItemSystem/ItemLibrary'
 import StoryboardEditor from '../Storyboard/StoryboardEditor'
 import TileTypeManager from '../TileTypes/TileTypeManager'
+import StatusLibrary from '../EffectSystem/StatusLibrary'
+import EffectLibrary from '../EffectSystem/EffectLibrary'
 import styles from './Sidebar.module.css'
 
 const TABS = [
@@ -13,6 +15,7 @@ const TABS = [
   { id: 'storyboards', icon: '🎬', label: 'Storyboards' },
   { id: 'abilities',   icon: '⚡', label: 'Abilities'   },
   { id: 'items',       icon: '🎒', label: 'Items'       },
+  { id: 'effects',     icon: '✨', label: 'Effects'     },
 ]
 
 export default function LeftSidebar({ collapsed }) {
@@ -38,10 +41,31 @@ export default function LeftSidebar({ collapsed }) {
             {tab === 'storyboards' && <StoryboardEditor />}
             {tab === 'abilities'   && <AbilityLibrary />}
             {tab === 'items'       && <ItemLibrary />}
+            {tab === 'effects'     && <EffectsTab />}
           </div>
         </>
       )}
     </div>
+  )
+}
+
+// ── Effects tab (sub-tabs: Statuses, Effects) ─────────────────
+function EffectsTab() {
+  const [subTab, setSubTab] = useState('statuses')
+  return (
+    <>
+      <div className={styles.subTabBar}>
+        {[['statuses', 'Statuses'], ['effects', 'Effects']].map(([id, label]) => (
+          <button key={id}
+            className={`${styles.subTab} ${subTab === id ? styles.subTabActive : ''}`}
+            onClick={() => setSubTab(id)}>
+            {label}
+          </button>
+        ))}
+      </div>
+      {subTab === 'statuses' && <StatusLibrary />}
+      {subTab === 'effects'  && <EffectLibrary />}
+    </>
   )
 }
 

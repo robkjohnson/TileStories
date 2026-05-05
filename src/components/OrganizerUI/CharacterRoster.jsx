@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { useStore } from '../../store/useStore'
 import { tokenColor, tokenDisplay } from '../CharacterSheet/CharacterSheet'
+import { StatusPill } from '../EffectSystem/StatusLibrary'
 import { rollDice } from '../../utils/dice'
 import styles from './Sidebar.module.css'
 
@@ -279,6 +280,19 @@ function CharacterCard({ char, campaign, onOpen, onDelete, deleteConfirm, onCanc
           {char.type}{isPlayerJoined && ' · Player'}
         </div>
         {loc && <div className={styles.rosterLoc}>📍 {loc}</div>}
+        {/* Status pills */}
+        {(char.activeStatuses || []).length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3, marginTop: 3 }} onClick={e => e.stopPropagation()}>
+            {(char.activeStatuses || []).slice(0, 3).map(({ statusId }) => (
+              <StatusPill key={statusId} statusId={statusId} campaign={campaign} />
+            ))}
+            {(char.activeStatuses || []).length > 3 && (
+              <span style={{ fontSize: 10, color: 'var(--text-muted)', alignSelf: 'center' }}>
+                +{(char.activeStatuses || []).length - 3} more
+              </span>
+            )}
+          </div>
+        )}
         {/* Currency — shown inline for player characters */}
         {isPlayer && (
           <div className={styles.currencyRow} onClick={e => e.stopPropagation()}>

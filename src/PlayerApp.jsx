@@ -8,6 +8,8 @@ import { getAllAnnotationsForMap, PIN_COLORS, setAnnotation, clearAnnotation } f
 import { loadImage } from './utils/imageStorage'
 import { useImage } from './utils/useImage'
 import { rollDice } from './utils/dice'
+import { StatusPill } from './components/EffectSystem/StatusLibrary'
+import { rotateAoePattern } from './store/useStore'
 import styles from './PlayerApp.module.css'
 
 const deviceId = getDeviceId()
@@ -25,6 +27,7 @@ export default function PlayerApp() {
   const [rollRequest, setRollRequest] = useState(null)   // { requestId, threshold, diceType, characterName }
   const [diceResult, setDiceResult] = useState(null)     // { value, success } — auto-dismiss toast
   const diceResultTimer = useRef(null)
+  const [playerEffectMode, setPlayerEffectMode] = useState(null) // { effectId, sourceType, sourceId, selectedTiles, selectedChars, aoeRotation }
 
   const { send } = useGameSocket(useCallback((msg) => {
     switch (msg.type) {
@@ -167,6 +170,69 @@ export default function PlayerApp() {
       requestId,
     })
     if (requestId) setRollRequest(null)
+  }
+
+  function startPlayerEffect(effectId, sourceType, sourceId) {
+    const effect = campaign?.effects?.[effectId]
+    if (!effect) return
+    setPlayerEffectMode({ effectId, sourceType, sourceId, selectedTiles: [], selectedChars: [], aoeRotation: 0 })
+    if (effect.targetType !== 'char_select') setActiveTab('map')
+  }
+
+  function cancelPlayerEffect() { setPlayerEffectMode(null) }
+
+  function handlePlayerEffectTileClick(q, r) {
+    if (!playerEffectMode) return
+    const effect = campaign?.effects?.[playerEffectMode.effectId]
+    if (!effect) return
+    if (effect.targetType === 'tile_select') {
+      const count = effect.targetCount || 1
+      setPlayerEffectMode(prev => {
+        const key = `${q},${r}`
+        const already = prev.selectedTiles.findIndex(t => t.q === q && t.r === r)
+        if (already >= 0) return { ...prev, selectedTiles: prev.selectedTiles.filter((_, i) => i !== already) }
+        if (prev.selectedTiles.length >= count) return prev
+        return { ...prev, selectedTiles: [...prev.selectedTiles, { q, r }] }
+      })
+    } else if (effect.targetType === 'single_tile' || effect.targetType === 'tile_aoe') {
+      setPlayerEffectMode(prev => ({ ...prev, selectedTiles: [{ q, r }] }))
+    }
+  }
+
+  function togglePlayerEffectChar(charId) {
+    if (!playerEffectMode) return
+    const effect = campaign?.effects?.[playerEffectMode.effectId]
+    const count = effect?.targetCount || 1
+    setPlayerEffectMode(prev => {
+      const already = prev.selectedChars.includes(charId)
+      if (already) return { ...prev, selectedChars: prev.selectedChars.filter(id => id !== charId) }
+      if (prev.selectedChars.length >= count) return prev
+      return { ...prev, selectedChars: [...prev.selectedChars, charId] }
+    })
+  }
+
+  function rotatePlayerEffectAoe(dir) {
+    setPlayerEffectMode(prev => {
+      if (!prev) return prev
+      const step = dir === 'cw' ? 1 : -1
+      return { ...prev, aoeRotation: ((prev.aoeRotation + step) % 8 + 8) % 8 }
+    })
+  }
+
+  function confirmPlayerEffect() {
+    if (!playerEffectMode) return
+    const myChar = (character?.id && campaign?.characters?.[character.id]) || character
+    send({
+      type: 'PLAYER_USE_EFFECT',
+      characterId: myChar?.id,
+      effectId: playerEffectMode.effectId,
+      sourceType: playerEffectMode.sourceType,
+      sourceId: playerEffectMode.sourceId,
+      selectedTiles: playerEffectMode.selectedTiles,
+      selectedChars: playerEffectMode.selectedChars,
+      aoeRotation: playerEffectMode.aoeRotation,
+    })
+    setPlayerEffectMode(null)
   }
 
   function handleJoin() {
@@ -389,6 +455,19 @@ export default function PlayerApp() {
           <RollResultToast result={diceResult} onDismiss={() => setDiceResult(null)} />
         )}
 
+        {/* Player effect bar — floats above tab bar when active */}
+        {playerEffectMode && (
+          <PlayerEffectBar
+            effectMode={playerEffectMode}
+            campaign={campaign}
+            map={campaign?.maps?.[activeMapId]}
+            onCancel={cancelPlayerEffect}
+            onRotate={rotatePlayerEffectAoe}
+            onToggleChar={togglePlayerEffectChar}
+            onConfirm={confirmPlayerEffect}
+          />
+        )}
+
         {/* Content */}
         <div className={styles.gameContent}>
           {activeTab === 'map' && (
@@ -401,13 +480,15 @@ export default function PlayerApp() {
               isMyTurn={isMyTurn}
               onMove={handleRequestMove}
               onStoryboard={sb => setPlayerStoryboard(sb)}
+              playerEffectMode={playerEffectMode}
+              onEffectTileClick={handlePlayerEffectTileClick}
             />
           )}
           {activeTab === 'character' && (
-            <PlayerCharacterView character={myChar} campaign={campaign} localCharacter={character} send={send} onRoll={handlePlayerRoll} />
+            <PlayerCharacterView character={myChar} campaign={campaign} localCharacter={character} send={send} onRoll={handlePlayerRoll} onStartEffect={startPlayerEffect} />
           )}
           {activeTab === 'inventory' && (
-            <PlayerInventoryView character={myChar} campaign={campaign} />
+            <PlayerInventoryView character={myChar} campaign={campaign} onStartEffect={startPlayerEffect} />
           )}
           {activeTab === 'party' && (
             <PlayerPartyView campaign={campaign} character={myChar} />
@@ -538,17 +619,20 @@ function drawTileTokens(ctx, sx, sy, tileR, tile, characters, isOrganizer) {
 }
 
 // ── Player map view ───────────────────────────────────────────
-function PlayerMapView({ map, campaign, session, character, send, isMyTurn, onMove, onStoryboard }) {
+function PlayerMapView({ map, campaign, session, character, send, isMyTurn, onMove, onStoryboard, playerEffectMode, onEffectTileClick }) {
   const containerRef = useRef(null)
   const canvasRef = useRef(null)
   const [selectedTile, setSelectedTile] = useState(null)
   const [camera, setCamera] = useState({ x: 0, y: 0, zoom: 1 })
   const [annotations, setAnnotations] = useState({})
   const [labelSize, setLabelSize] = useState(() => parseFloat(localStorage.getItem('tilestories_playerLabelSize') || '1'))
+  const [statusIconSize, setStatusIconSize] = useState(() => parseFloat(localStorage.getItem('tilestories_playerStatusIconSize') || '1'))
   const cameraRef = useRef(camera)
   cameraRef.current = camera
   const labelSizeRef = useRef(labelSize)
   labelSizeRef.current = labelSize
+  const statusIconSizeRef = useRef(statusIconSize)
+  statusIconSizeRef.current = statusIconSize
   const fittedMap = useRef(null)
   const drawRef = useRef(null)
 
@@ -663,6 +747,27 @@ function PlayerMapView({ map, campaign, session, character, send, isMyTurn, onMo
           ctx.fill()
         }
 
+        // Status icons — small emoji cluster at top-right
+        const tileStatuses = tile.activeStatuses || []
+        if (tileStatuses.length > 0 && tileR > 10) {
+          const sis = statusIconSizeRef.current
+          const iconSize = Math.max(7, tileR * 0.2 * sis)
+          ctx.font = `${iconSize}px sans-serif`
+          ctx.textAlign = 'center'
+          ctx.textBaseline = 'middle'
+          const startX = sx + tileR * 0.55 - (Math.min(tileStatuses.length, 3) - 1) * iconSize * 0.55
+          const iconY = sy - tileR * 0.62
+          tileStatuses.slice(0, 3).forEach((s, i) => {
+            const status = campaign?.statuses?.[s.statusId]
+            if (status?.icon) ctx.fillText(status.icon, startX + i * iconSize * 1.1, iconY)
+          })
+          if (tileStatuses.length > 3) {
+            ctx.font = `600 ${Math.max(6, iconSize * 0.7)}px sans-serif`
+            ctx.fillStyle = 'rgba(200,169,110,0.9)'
+            ctx.fillText(`+${tileStatuses.length - 3}`, startX + 3 * iconSize * 1.1, iconY)
+          }
+        }
+
         // Collect label for second pass so it renders above all tile bodies
         if (tile.label && tile.showLabel && tileR > 18) {
           pendingLabels.push({ sx, sy, label: tile.label, textColor: biome.textColor })
@@ -685,6 +790,39 @@ function PlayerMapView({ map, campaign, session, character, send, isMyTurn, onMo
       ctx.fillRect(pillX, pillY, textW + padX * 2, fontSize + padY * 2)
       ctx.fillStyle = textColor
       ctx.fillText(label, sx, pillY + padY)
+    }
+
+    // ── Effect mode highlights ────────────────────────────────────
+    if (playerEffectMode) {
+      const effect = campaign?.effects?.[playerEffectMode.effectId]
+      const { selectedTiles } = playerEffectMode
+
+      function highlightTile(q, r, fillColor, strokeColor, lineW) {
+        const wp = isSquare ? squareToPixel(q, r, BASE_SIZE) : hexToPixel(q, r, HEX_SIZE)
+        const hx = wp.x * zoom + cx, hy = wp.y * zoom + cy
+        const pts = isSquare ? squareCorners(hx, hy, sz) : hexCorners(hx, hy, sz)
+        ctx.beginPath()
+        ctx.moveTo(pts[0].x, pts[0].y)
+        for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y)
+        ctx.closePath()
+        if (fillColor) { ctx.fillStyle = fillColor; ctx.fill() }
+        if (strokeColor) { ctx.strokeStyle = strokeColor; ctx.lineWidth = lineW || 2; ctx.stroke() }
+      }
+
+      // Draw AoE preview around root
+      if (effect?.targetType === 'tile_aoe' && selectedTiles.length > 0) {
+        const root = selectedTiles[0]
+        const rotated = rotateAoePattern(effect.aoePattern || [], playerEffectMode.aoeRotation || 0, isSquare)
+        for (const { dq, dr } of rotated) {
+          highlightTile(root.q + dq, root.r + dr, 'rgba(91,155,213,0.25)', '#5b9bd5', 1.5)
+        }
+      }
+
+      // Draw selected / root tiles
+      for (const { q, r } of selectedTiles) {
+        const isRoot = effect?.targetType === 'tile_aoe' || effect?.targetType === 'single_tile'
+        highlightTile(q, r, isRoot ? 'rgba(200,169,110,0.35)' : 'rgba(91,155,213,0.35)', isRoot ? '#c8a96e' : '#5b9bd5', 2.5)
+      }
     }
   }
 
@@ -789,7 +927,10 @@ function PlayerMapView({ map, campaign, session, character, send, isMyTurn, onMo
     // Only select tile if this was a tap (not a pan)
     if (!wasDrag && e.changedTouches.length === 1) {
       const hex = getHex(e.changedTouches[0].clientX, e.changedTouches[0].clientY)
-      if (hex) setSelectedTile(prev => prev?.q === hex.q && prev?.r === hex.r ? null : hex)
+      if (hex) {
+        if (playerEffectMode) { onEffectTileClick?.(hex.q, hex.r); return }
+        setSelectedTile(prev => prev?.q === hex.q && prev?.r === hex.r ? null : hex)
+      }
     }
   }
 
@@ -840,7 +981,10 @@ function PlayerMapView({ map, campaign, session, character, send, isMyTurn, onMo
     mouseMoved.current = false
     if (!wasDrag && e.button === 0) {
       const hex = getHex(e.clientX, e.clientY)
-      if (hex) setSelectedTile(prev => prev?.q === hex.q && prev?.r === hex.r ? null : hex)
+      if (hex) {
+        if (playerEffectMode) { onEffectTileClick?.(hex.q, hex.r); return }
+        setSelectedTile(prev => prev?.q === hex.q && prev?.r === hex.r ? null : hex)
+      }
     }
   }
 
@@ -862,7 +1006,7 @@ function PlayerMapView({ map, campaign, session, character, send, isMyTurn, onMo
     <div className={styles.mapWrap}>
       <div ref={containerRef} className={styles.mapCanvas}>
         <canvas ref={canvasRef}
-          style={{ display: 'block', cursor: mouseDragging.current ? 'grabbing' : 'default', touchAction: 'none' }}
+          style={{ display: 'block', cursor: playerEffectMode ? 'crosshair' : mouseDragging.current ? 'grabbing' : 'default', touchAction: 'none' }}
           onMouseDown={onMouseDown}
           onMouseMove={onMouseMove}
           onMouseUp={onMouseUp}
@@ -872,18 +1016,24 @@ function PlayerMapView({ map, campaign, session, character, send, isMyTurn, onMo
           onTouchMove={onTouchMove}
           onTouchEnd={onTouchEnd}
         />
-        {/* Label size control */}
-        <div style={{ position: 'absolute', bottom: 8, left: 8, display: 'flex', alignItems: 'center', gap: 5, background: 'rgba(20,22,24,0.78)', borderRadius: 6, padding: '3px 8px', pointerEvents: 'auto' }}>
-          <span style={{ fontSize: 10, color: 'rgba(200,200,200,0.55)', userSelect: 'none' }}>A</span>
-          <input type="range" min={0.5} max={2} step={0.1} value={labelSize}
-            onChange={e => {
-              const v = parseFloat(e.target.value)
-              localStorage.setItem('tilestories_playerLabelSize', v)
-              setLabelSize(v)
-            }}
-            style={{ width: 60, accentColor: '#c8a96e' }}
-          />
-          <span style={{ fontSize: 13, color: 'rgba(200,200,200,0.55)', userSelect: 'none' }}>A</span>
+        {/* Map controls */}
+        <div style={{ position: 'absolute', bottom: 8, left: 8, display: 'flex', flexDirection: 'column', gap: 4, pointerEvents: 'auto' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'rgba(20,22,24,0.78)', borderRadius: 6, padding: '3px 8px' }}>
+            <span style={{ fontSize: 10, color: 'rgba(200,200,200,0.55)', userSelect: 'none' }}>A</span>
+            <input type="range" min={0.5} max={2} step={0.1} value={labelSize}
+              onChange={e => { const v = parseFloat(e.target.value); localStorage.setItem('tilestories_playerLabelSize', v); setLabelSize(v) }}
+              style={{ width: 55, accentColor: '#c8a96e' }}
+            />
+            <span style={{ fontSize: 13, color: 'rgba(200,200,200,0.55)', userSelect: 'none' }}>A</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'rgba(20,22,24,0.78)', borderRadius: 6, padding: '3px 8px' }}>
+            <span style={{ fontSize: 9, color: 'rgba(200,200,200,0.55)', userSelect: 'none' }}>✨</span>
+            <input type="range" min={0.4} max={2} step={0.1} value={statusIconSize}
+              onChange={e => { const v = parseFloat(e.target.value); localStorage.setItem('tilestories_playerStatusIconSize', v); setStatusIconSize(v) }}
+              style={{ width: 55, accentColor: '#c8a96e' }}
+            />
+            <span style={{ fontSize: 12, color: 'rgba(200,200,200,0.55)', userSelect: 'none' }}>✨</span>
+          </div>
         </div>
       </div>
 
@@ -977,7 +1127,7 @@ async function compressImage(file, maxDim = 300, quality = 0.78) {
   })
 }
 
-function PlayerCharacterView({ character, campaign, localCharacter, send, onRoll }) {
+function PlayerCharacterView({ character, campaign, localCharacter, send, onRoll, onStartEffect }) {
   const [tab, setTab] = useState('info')
   const portraitInputRef = useRef(null)
   const abilities = character?.abilities || []
@@ -1057,6 +1207,14 @@ function PlayerCharacterView({ character, campaign, localCharacter, send, onRoll
               }} />
             </div>
           </div>
+          {/* Active Statuses */}
+          {(character.activeStatuses || []).length > 0 && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+              {(character.activeStatuses || []).map(({ statusId }) => (
+                <StatusPill key={statusId} statusId={statusId} campaign={campaign} />
+              ))}
+            </div>
+          )}
           <div className={styles.statGrid}>
             {[
               ['Speed', `${sb.speed ?? 3} tiles`],
@@ -1127,6 +1285,15 @@ function PlayerCharacterView({ character, campaign, localCharacter, send, onRoll
                   {tmpl.conditions?.length > 0 && <span className={styles.abilityStat}>⚠️ {tmpl.conditions.join(', ')}</span>}
                   {tmpl.usesPerRest && <span className={styles.abilityStat}>🔁 {tmpl.restType} rest</span>}
                 </div>
+                {tmpl.effectId && onStartEffect && (
+                  <button
+                    style={{ marginTop: 6, padding: '5px 12px', borderRadius: 6, border: 'none', background: 'var(--accent)', color: 'var(--bg-primary)', fontSize: 12, fontWeight: 700, cursor: usesRemaining === 0 ? 'not-allowed' : 'pointer', opacity: usesRemaining === 0 ? 0.4 : 1, alignSelf: 'flex-start' }}
+                    disabled={tmpl.usesPerRest != null && usesRemaining <= 0}
+                    onClick={() => onStartEffect(tmpl.effectId, 'ability', inst.templateId)}
+                  >
+                    ⚡ Use
+                  </button>
+                )}
               </div>
             )
           })}
@@ -1202,7 +1369,7 @@ function PlayerStoryTab({ character, localCharacter }) {
 const RARITY_COLORS = { common:'#9a9790', uncommon:'#7bc47f', rare:'#5b9bd5', epic:'#9b7bc4', legendary:'#c8a96e' }
 const RARITY_LABELS = { common:'Common', uncommon:'Uncommon', rare:'Rare', epic:'Epic', legendary:'Legendary' }
 
-function PlayerInventoryView({ character, campaign }) {
+function PlayerInventoryView({ character, campaign, onStartEffect }) {
   const [detail, setDetail] = useState(null)
 
   if (!character) return <div className={styles.emptyView}>No character</div>
@@ -1278,11 +1445,131 @@ function PlayerInventoryView({ character, campaign }) {
                     <div className={styles.charDetailText}>{inst.notes}</div>
                   </div>
                 )}
+                {!unidentified && tmpl.effectId && onStartEffect && (
+                  <button
+                    style={{ marginTop: 10, padding: '8px 20px', borderRadius: 6, border: 'none', background: 'var(--accent)', color: 'var(--bg-primary)', fontSize: 13, fontWeight: 700, cursor: 'pointer', width: '100%' }}
+                    onClick={() => { setDetail(null); onStartEffect(tmpl.effectId, 'item', inst.templateId) }}
+                  >
+                    ⚡ Use Item
+                  </button>
+                )}
               </>
             })()}
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+// ── Player effect bar ─────────────────────────────────────────
+function PlayerEffectBar({ effectMode, campaign, map, onCancel, onRotate, onToggleChar, onConfirm }) {
+  const effect = campaign?.effects?.[effectMode.effectId]
+  if (!effect) return null
+
+  const { selectedTiles, selectedChars, aoeRotation } = effectMode
+  const count = effect.targetCount || 1
+  const isSquare = map?.tileStyle === 'square'
+
+  const canConfirm =
+    (effect.targetType === 'char_select' && selectedChars.length > 0) ||
+    (effect.targetType !== 'char_select' && selectedTiles.length > 0)
+
+  const instruction =
+    effect.targetType === 'tile_aoe'    ? 'Tap a tile on the map to set the AoE origin.' :
+    effect.targetType === 'single_tile' ? 'Tap a tile on the map to target it.' :
+    effect.targetType === 'tile_select' ? `Tap up to ${count} tile${count > 1 ? 's' : ''} on the map, then confirm.` :
+    effect.targetType === 'char_select' ? `Select up to ${count} character${count > 1 ? 's' : ''} below, then confirm.` : ''
+
+  const allChars = Object.values(campaign?.characters || {})
+    .filter(c => !c.hidden)
+    .sort((a, b) => a.name.localeCompare(b.name))
+
+  const rotDeg = ((aoeRotation % 8) + 8) % 8 * 45
+
+  return (
+    <div style={{
+      position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 30,
+      background: 'rgba(20,22,26,0.97)', borderTop: '1.5px solid var(--accent)',
+      padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: 8,
+      backdropFilter: 'blur(4px)',
+    }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ fontSize: 18 }}>⚡</span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', display: 'block' }}>{effect.name}</span>
+          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+            {effect.targetType === 'tile_aoe' && effect.aoePattern?.length > 0
+              ? `AoE — ${effect.aoePattern.length + 1} tiles`
+              : effect.targetType === 'tile_select' || effect.targetType === 'char_select'
+              ? `Select up to ${count}` : null}
+          </span>
+        </div>
+        <button onClick={onCancel} style={{ padding: '4px 10px', borderRadius: 4, border: '0.5px solid var(--border-strong)', background: 'transparent', color: 'var(--text-muted)', fontSize: 11, cursor: 'pointer' }}>
+          ✕ Cancel
+        </button>
+      </div>
+
+      {/* Instruction */}
+      <div style={{ fontSize: 12, color: 'var(--text-secondary)', padding: '6px 8px', background: 'var(--bg-overlay)', borderRadius: 4 }}>
+        {instruction}
+      </div>
+
+      {/* AoE rotation */}
+      {effect.targetType === 'tile_aoe' && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 8px', background: 'var(--bg-overlay)', borderRadius: 4 }}>
+          <span style={{ fontSize: 11, color: 'var(--text-muted)', flex: 1 }}>Rotation</span>
+          <button onClick={() => onRotate('ccw')} style={{ width: 28, height: 28, borderRadius: 4, border: '0.5px solid var(--border-strong)', background: 'var(--bg-raised)', color: 'var(--text-secondary)', fontSize: 16, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>↺</button>
+          <span style={{ fontSize: 12, color: 'var(--accent)', fontWeight: 600, minWidth: 36, textAlign: 'center' }}>{rotDeg}°</span>
+          <button onClick={() => onRotate('cw')} style={{ width: 28, height: 28, borderRadius: 4, border: '0.5px solid var(--border-strong)', background: 'var(--bg-raised)', color: 'var(--text-secondary)', fontSize: 16, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>↻</button>
+        </div>
+      )}
+
+      {/* Char picker */}
+      {effect.targetType === 'char_select' && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, maxHeight: 100, overflowY: 'auto', padding: '4px 0' }}>
+          {allChars.map(char => {
+            const isSelected = selectedChars.includes(char.id)
+            const atLimit = selectedChars.length >= count && !isSelected
+            return (
+              <button
+                key={char.id}
+                disabled={atLimit}
+                onClick={() => !atLimit && onToggleChar(char.id)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 5,
+                  padding: '4px 10px', borderRadius: 20,
+                  border: `1px solid ${isSelected ? 'var(--accent)' : 'var(--border-strong)'}`,
+                  background: isSelected ? 'rgba(200,169,110,0.18)' : 'var(--bg-raised)',
+                  color: isSelected ? 'var(--accent)' : 'var(--text-secondary)',
+                  fontSize: 12, cursor: atLimit ? 'not-allowed' : 'pointer', opacity: atLimit ? 0.4 : 1,
+                  fontWeight: isSelected ? 500 : 400,
+                }}
+              >
+                <span style={{ fontSize: 14 }}>{char.emoji || '👤'}</span>
+                <span style={{ maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{char.name}</span>
+                {char.stats?.hp !== undefined && <span style={{ fontSize: 10, color: 'var(--text-muted)', marginLeft: 2 }}>{char.stats.hp}hp</span>}
+              </button>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Summary + confirm row */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ flex: 1, fontSize: 11, color: 'var(--accent)' }}>
+          {selectedTiles.length > 0 && `${selectedTiles.length} tile${selectedTiles.length > 1 ? 's' : ''} selected`}
+          {selectedChars.length > 0 && selectedChars.map(id => campaign?.characters?.[id]?.name || id).join(', ')}
+        </span>
+        <button
+          onClick={onConfirm}
+          disabled={!canConfirm}
+          style={{ padding: '8px 20px', borderRadius: 4, border: 'none', background: 'var(--accent)', color: 'var(--bg-primary)', fontSize: 13, fontWeight: 700, cursor: canConfirm ? 'pointer' : 'not-allowed', opacity: canConfirm ? 1 : 0.4 }}
+        >
+          Confirm →
+        </button>
+      </div>
     </div>
   )
 }
@@ -1753,8 +2040,8 @@ function PlayerTilePanel({ tile, tileKey, q, r, campaign, mapId, campaignId, cha
           {pendingEvent.steps?.length > 0 && (
             <div className={styles.eventConfirmSteps}>
               {pendingEvent.steps.map((s, i) => {
-                const icons = { storyboard:'🎬', fire:'🔥', flood:'🌊', collapse:'⛰', portal:'🌀', reveal:'👁', message:'💬' }
-                const labels = { storyboard:'Storyboard', fire:'Fire', flood:'Flood', collapse:'Collapse', portal:'Portal', reveal:'Reveal', message:'Message' }
+                const icons = { storyboard:'🎬', effect:'⚡', portal:'🌀', message:'💬' }
+                const labels = { storyboard:'Storyboard', effect:'Effect', portal:'Portal', message:'Message' }
                 return (
                   <span key={i} className={styles.eventConfirmStep}>
                     {icons[s.type] || '⚡'} {labels[s.type] || s.type}
@@ -1791,10 +2078,10 @@ function PlayerTilePanel({ tile, tileKey, q, r, campaign, mapId, campaignId, cha
             </div>
           )}
           {visibleEvents.map(ev => {
-            const STEP_COLORS = { storyboard:'#c8709a', fire:'#c25a4a', flood:'#2a5a8a', collapse:'#6a6a6a', portal:'#7a5ab5', reveal:'#c8a96e', message:'#7bc47f' }
+            const STEP_COLORS = { storyboard:'#c8709a', effect:'#c8a96e', portal:'#7a5ab5', message:'#7bc47f' }
             const firstStep = ev.steps?.[0]
             const color = firstStep ? (STEP_COLORS[firstStep.type] || '#7bc47f') : '#7bc47f'
-            const icons = (ev.steps || []).map(s => ({ storyboard:'🎬',fire:'🔥',flood:'🌊',collapse:'⛰',portal:'🌀',reveal:'👁',message:'💬' })[s.type] || '⚡').join(' ')
+            const icons = (ev.steps || []).map(s => ({ storyboard:'🎬', effect:'⚡', portal:'🌀', message:'💬' })[s.type] || '⚡').join(' ')
             return (
               <div key={ev.id} className={styles.playerEventCard}
                 style={{ borderLeftColor: color, opacity: (notYourTile || !canAct) ? 0.55 : 1 }}>

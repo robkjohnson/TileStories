@@ -129,6 +129,7 @@ function DebouncedAbilityInput({ storeValue, onUpdate, ...rest }) {
 
 // ── Full ability editor ───────────────────────────────────────
 function AbilityEditor({ template: tmpl, onUpdate, onDelete, deleteConfirm, onCancelDelete }) {
+  const { campaign } = useStore()
   const [diceError, setDiceError] = useState(false)
   const [diceError2, setDiceError2] = useState(false)
   const [conditionsDraft, setConditionsDraft] = useState((tmpl.conditions || []).join(', '))
@@ -354,6 +355,20 @@ function AbilityEditor({ template: tmpl, onUpdate, onDelete, deleteConfirm, onCa
           placeholder="cryptid, fire, signature, ranged…" />
       </div>
 
+      {/* Linked Effect */}
+      <div className={styles.sectionDivider}>Linked Effect</div>
+      <div className={styles.editorField}>
+        <label>Effect <span className={styles.subLabel}>(executed when this ability is Used)</span></label>
+        <select value={tmpl.effectId || ''}
+          onChange={e => onUpdate({ effectId: e.target.value || null })}>
+          <option value="">None</option>
+          {Object.values(campaign?.effects || {})
+            .sort((a, b) => a.name.localeCompare(b.name))
+            .map(ef => <option key={ef.id} value={ef.id}>{ef.name}</option>)
+          }
+        </select>
+      </div>
+
       {/* Preview */}
       {(tmpl.damageDice || tmpl.description) && (
         <div className={styles.preview}>
@@ -417,6 +432,7 @@ export function AbilityCard({ template: tmpl, instance, compact, onUse }) {
         {tmpl.secondaryDamageDice && <span className={styles.abilityStat}>🔄 {tmpl.secondaryDamageDice} {tmpl.secondaryDamageType} {tmpl.secondaryDamageDesc}</span>}
         {!maxUses && <span className={styles.abilityStat}>∞ Unlimited</span>}
         {maxUses && <span className={styles.abilityStat}>🔁 {maxUses}/{tmpl.restType} rest</span>}
+        {tmpl.effectId && <span className={styles.abilityStat}>⚡ Has effect</span>}
       </div>
       {tmpl.tags?.length > 0 && (
         <div className={styles.tagRow}>

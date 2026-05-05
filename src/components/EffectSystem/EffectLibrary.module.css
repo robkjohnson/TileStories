@@ -1,0 +1,123 @@
+.library { display: flex; flex-direction: column; gap: 8px; }
+
+.toolbar { display: flex; gap: 6px; }
+.search { flex: 1; font-size: 13px; }
+.addBtn {
+  padding: 6px 12px; border-radius: var(--radius-sm);
+  border: 0.5px solid var(--accent-dim); background: transparent;
+  color: var(--accent); font-size: 12px; cursor: pointer; white-space: nowrap;
+}
+.addBtn:hover { background: var(--bg-overlay); }
+
+.empty { font-size: 13px; color: var(--text-muted); font-style: italic; text-align: center; padding: 20px 0; }
+
+.card {
+  background: var(--bg-raised); border: 0.5px solid var(--border);
+  border-radius: var(--radius-sm); overflow: hidden;
+}
+.cardHeader {
+  display: flex; align-items: center; gap: 8px;
+  padding: 9px 12px; cursor: pointer; user-select: none; transition: background 0.1s;
+}
+.cardHeader:hover { background: var(--bg-overlay); }
+.targetIcon { font-size: 15px; flex-shrink: 0; }
+.cardTitle { flex: 1; min-width: 0; }
+.cardName { font-size: 13px; font-weight: 500; color: var(--text-primary); display: block; }
+.cardMeta { font-size: 11px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.useBtn {
+  padding: 3px 9px; border-radius: var(--radius-sm);
+  border: 0.5px solid var(--accent-dim); background: transparent;
+  color: var(--accent); font-size: 11px; cursor: pointer; white-space: nowrap; flex-shrink: 0;
+}
+.useBtn:hover { background: var(--bg-overlay); }
+.chevron { font-size: 9px; color: var(--text-muted); flex-shrink: 0; }
+
+.editor {
+  border-top: 0.5px solid var(--border);
+  padding: 10px; display: flex; flex-direction: column; gap: 10px;
+}
+.editorRow { display: flex; gap: 8px; flex-wrap: wrap; }
+.editorField { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 0; }
+.editorField label {
+  font-size: 11px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-muted);
+}
+.subLabel { text-transform: none; letter-spacing: 0; opacity: 0.8; font-size: 10px; }
+
+.btnGroup { display: flex; gap: 3px; flex-wrap: wrap; }
+.groupBtn {
+  padding: 4px 9px; border-radius: var(--radius-sm);
+  border: 0.5px solid var(--border-strong); background: transparent;
+  color: var(--text-muted); font-size: 11px; cursor: pointer; transition: all 0.1s;
+}
+.groupBtn:hover { color: var(--text-primary); }
+.groupBtnActive {
+  background: var(--bg-overlay); border-color: var(--accent-dim); color: var(--accent); font-weight: 500;
+}
+
+.aoeBtn {
+  padding: 5px 12px; border-radius: var(--radius-sm);
+  border: 0.5px solid var(--border-strong); background: var(--bg-overlay);
+  color: var(--text-secondary); font-size: 12px; cursor: pointer; width: fit-content;
+}
+.aoeBtn:hover { border-color: var(--accent-dim); color: var(--accent); }
+
+/* Actions list */
+.actionRow {
+  display: flex; flex-direction: column; gap: 6px;
+  padding: 8px; border-radius: var(--radius-sm);
+  border: 0.5px solid var(--border); background: var(--bg-overlay);
+  position: relative;
+}
+.actionType { display: flex; gap: 4px; }
+.actionTypeBtn {
+  padding: 3px 9px; border-radius: var(--radius-sm);
+  border: 0.5px solid var(--border-strong); background: transparent;
+  color: var(--text-muted); font-size: 11px; cursor: pointer;
+}
+.actionTypeBtn:hover { color: var(--text-primary); }
+.actionTypeBtnActive {
+  background: var(--bg-raised); border-color: var(--accent-dim);
+  color: var(--accent); font-weight: 500;
+}
+.actionFields { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.removeActionBtn {
+  position: absolute; top: 6px; right: 6px;
+  background: none; border: none; color: var(--text-muted);
+  font-size: 16px; cursor: pointer; line-height: 1; padding: 0;
+}
+.removeActionBtn:hover { color: #c25a4a; }
+
+.addActionBtn {
+  padding: 5px 10px; border-radius: var(--radius-sm);
+  border: 0.5px dashed var(--border-strong); background: transparent;
+  color: var(--text-muted); font-size: 11px; cursor: pointer; text-align: center;
+}
+.addActionBtn:hover { color: var(--text-primary); border-color: var(--accent-dim); }
+
+.emptyHint { font-size: 11px; color: var(--text-muted); font-style: italic; }
+
+.useEffectBtn {
+  padding: 8px 16px; border-radius: var(--radius-sm);
+  border: none; background: var(--accent); color: var(--bg-primary);
+  font-size: 13px; font-weight: 600; cursor: pointer; text-align: center;
+}
+.useEffectBtn:hover { opacity: 0.9; }
+
+.deleteRow { display: flex; align-items: center; gap: 6px; padding-top: 4px; border-top: 0.5px solid var(--border); }
+.deleteWarning { font-size: 12px; color: var(--text-muted); flex: 1; }
+.deleteBtn {
+  margin-left: auto; padding: 4px 10px; border-radius: var(--radius-sm);
+  border: 0.5px solid var(--border); background: transparent;
+  color: var(--text-muted); font-size: 11px; cursor: pointer;
+}
+.deleteBtn:hover { color: #c25a4a; border-color: #c25a4a; }
+.deleteBtnConfirm {
+  padding: 4px 10px; border-radius: var(--radius-sm);
+  border: none; background: #c25a4a; color: #fff; font-size: 11px; cursor: pointer;
+}
+.deleteBtnCancel {
+  padding: 4px 10px; border-radius: var(--radius-sm);
+  border: 0.5px solid var(--border-strong); background: transparent;
+  color: var(--text-muted); font-size: 11px; cursor: pointer;
+}

@@ -71,6 +71,7 @@
 .affectedWrap { display: flex; flex-direction: column; gap: 5px; }
 .affectedList { display: flex; flex-wrap: wrap; gap: 4px; }
 .affectedChip { display: flex; align-items: center; gap: 3px; padding: 2px 6px; background: var(--bg-overlay); border: 0.5px solid var(--border-strong); border-radius: 8px; font-size: 11px; color: var(--text-secondary); }
+.affectedChipActive { background: rgba(200,169,110,0.15) !important; border-color: var(--accent) !important; color: var(--accent) !important; }
 .affectedChip button { border: none; background: none; color: var(--text-muted); cursor: pointer; font-size: 13px; line-height: 1; padding: 0; }
 .affectedChip button:hover { color: var(--danger); }
 

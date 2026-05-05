@@ -144,6 +144,13 @@ function ItemTemplateRow({ template: t, expanded, onToggle, onUpdate, deleteConf
           <p className={styles.hint}>Abilities granted to the holder while they have this item.</p>
           <LinkedAbilitiesEditor abilityIds={t.abilityIds || []} onChange={v => onUpdate({ abilityIds: v })} />
 
+          {/* Linked effect */}
+          <div className={styles.sectionDivider}>Linked effect</div>
+          <p className={styles.hint}>Effect executed when a player Uses this item.</p>
+          <Field label="Effect">
+            <LinkedEffectPicker effectId={t.effectId} onChange={v => onUpdate({ effectId: v })} />
+          </Field>
+
           {/* Delete */}
           <div className={styles.deleteRow}>
             {deleteConfirm ? (
@@ -278,11 +285,23 @@ export function ItemCard({ template: t, instance, compact, onTransfer, transferL
           {t.value > 0 && <span className={styles.itemStat}>💰 {t.value}gp</span>}
           {t.grantedTraits?.length > 0 && <span className={styles.itemStat}>✨ {t.grantedTraits.length} trait{t.grantedTraits.length !== 1 ? 's' : ''}</span>}
           {t.abilityIds?.length > 0 && <span className={styles.itemStat}>⚡ {t.abilityIds.length} {t.abilityIds.length !== 1 ? 'abilities' : 'ability'}</span>}
+          {t.effectId && <span className={styles.itemStat}>⚡ Has effect</span>}
           {t.tags?.map(tag => <span key={tag} className={styles.tag}>{tag}</span>)}
         </div>
       )}
       {instance?.notes && <div className={styles.itemNotes}>{instance.notes}</div>}
     </div>
+  )
+}
+
+function LinkedEffectPicker({ effectId, onChange }) {
+  const { campaign } = useStore()
+  const effects = Object.values(campaign?.effects || {}).sort((a, b) => a.name.localeCompare(b.name))
+  return (
+    <select value={effectId || ''} onChange={e => onChange(e.target.value || null)}>
+      <option value="">None</option>
+      {effects.map(ef => <option key={ef.id} value={ef.id}>{ef.name}</option>)}
+    </select>
   )
 }
 

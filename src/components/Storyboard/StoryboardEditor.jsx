@@ -360,7 +360,7 @@ function StoryboardCanvas({ storyboard: sb, onUpdate, onClose, onBroadcast }) {
 
             {sb.backgroundImage && (
               <ResolvedImg src={sb.backgroundImage}
-                style={{ position:'absolute', inset:0, width:'100%', height:'100%', objectFit:'cover', pointerEvents:'none', zIndex:0 }} />
+                style={{ position:'absolute', top:0, left:0, right:0, bottom:0, objectFit:'cover', pointerEvents:'none', zIndex:0 }} />
             )}
 
             {/* Image layers */}

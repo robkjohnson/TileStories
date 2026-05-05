@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { useStore, STEP_TYPES, VISIBILITY_OPTIONS, makeEvent, makeStep } from '../../store/useStore'
+import { useStore, STEP_TYPES, VISIBILITY_OPTIONS, makeEvent, makeStep, rotateAoePattern } from '../../store/useStore'
 import { resolveStoryboardImages } from '../../utils/imageStorage'
 import styles from './EventEditor.module.css'
 
@@ -13,6 +13,7 @@ export default function EventEditor({ tileQ, tileR, tile }) {
   const events = tile?.events || []
   const maps = Object.values(campaign?.maps || {})
   const storyboards = Object.values(campaign?.storyboards || {})
+  const effects = Object.values(campaign?.effects || {}).sort((a, b) => a.name.localeCompare(b.name))
   const activeMapId = campaign?.activeMapId
 
   function handleCreate(draft) {
@@ -66,6 +67,7 @@ export default function EventEditor({ tileQ, tileR, tile }) {
           onFire={() => setConfirmFire(ev.id)}
           maps={maps}
           storyboards={storyboards}
+          effects={effects}
           activeMapId={activeMapId}
           tileQ={tileQ}
           tileR={tileR}
@@ -78,6 +80,7 @@ export default function EventEditor({ tileQ, tileR, tile }) {
           onCancel={() => setCreating(false)}
           maps={maps}
           storyboards={storyboards}
+          effects={effects}
           activeMapId={activeMapId}
         />
       )}
@@ -109,7 +112,7 @@ export default function EventEditor({ tileQ, tileR, tile }) {
 }
 
 // ── Single event row ──────────────────────────────────────────
-function EventRow({ event, expanded, onToggle, onUpdate, onDelete, onFire, maps, storyboards, activeMapId, tileQ, tileR }) {
+function EventRow({ event, expanded, onToggle, onUpdate, onDelete, onFire, maps, storyboards, effects, activeMapId, tileQ, tileR }) {
   const stepSummary = (event.steps || []).map(s => STEP_TYPES[s.type]?.icon || '•').join(' ')
   const fired = !!event.firedAt
 
@@ -131,6 +134,7 @@ function EventRow({ event, expanded, onToggle, onUpdate, onDelete, onFire, maps,
             onSave={onUpdate}
             maps={maps}
             storyboards={storyboards}
+            effects={effects}
             activeMapId={activeMapId}
             isEdit
             tileQ={tileQ}
@@ -147,7 +151,7 @@ function EventRow({ event, expanded, onToggle, onUpdate, onDelete, onFire, maps,
 }
 
 // ── Event form (create or edit) ───────────────────────────────
-function EventForm({ initial = {}, onSave, onCancel, maps, storyboards, activeMapId, isEdit, tileQ, tileR }) {
+function EventForm({ initial = {}, onSave, onCancel, maps, storyboards, effects, activeMapId, isEdit, tileQ, tileR }) {
   const [name, setName] = useState(initial.name || '')
   const [description, setDescription] = useState(initial.description || '')
   const [visibility, setVisibility] = useState(initial.visibility || 'all')
@@ -224,6 +228,7 @@ function EventForm({ initial = {}, onSave, onCancel, maps, storyboards, activeMa
           total={steps.length}
           maps={maps}
           storyboards={storyboards}
+          effects={effects}
           activeMapId={activeMapId}
           tileQ={tileQ}
           tileR={tileR}
@@ -258,7 +263,7 @@ function EventForm({ initial = {}, onSave, onCancel, maps, storyboards, activeMa
 }
 
 // ── Individual step editor ────────────────────────────────────
-function StepEditor({ step, idx, total, maps, storyboards, activeMapId, tileQ, tileR, onChange, onRemove, onMoveUp, onMoveDown }) {
+function StepEditor({ step, idx, total, maps, storyboards, effects, activeMapId, tileQ, tileR, onChange, onRemove, onMoveUp, onMoveDown }) {
   const def = STEP_TYPES[step.type] || STEP_TYPES.message
   const { campaign, startPortalPick, endPortalPick, portalPickMode } = useStore()
   const isPicking = !!portalPickMode
@@ -302,17 +307,15 @@ function StepEditor({ step, idx, total, maps, storyboards, activeMapId, tileQ, t
           </>
         )}
 
-        {/* Tile-affecting steps */}
-        {['fire','flood','collapse','reveal'].includes(step.type) && (
-          <>
-            <AffectedTilesPicker
-              tileQ={tileQ} tileR={tileR}
-              affectedTiles={step.affectedTiles || []}
-              includeSelf={step.includeSelf !== false}
-              onChange={(affectedTiles, includeSelf) => onChange({ affectedTiles, includeSelf })}
-              activeMapId={activeMapId}
-            />
-          </>
+        {/* Effect step */}
+        {step.type === 'effect' && (
+          <EffectStepEditor
+            step={step}
+            effects={effects}
+            campaign={campaign}
+            activeMapId={activeMapId}
+            onChange={onChange}
+          />
         )}
 
         {/* Portal step */}
@@ -350,36 +353,101 @@ function StepEditor({ step, idx, total, maps, storyboards, activeMapId, tileQ, t
   )
 }
 
-// ── Affected tiles picker ─────────────────────────────────────
-function AffectedTilesPicker({ tileQ, tileR, affectedTiles, includeSelf, onChange, activeMapId }) {
+// ── Effect step editor ────────────────────────────────────────
+function EffectStepEditor({ step, effects, campaign, activeMapId, onChange }) {
+  const chosenEffect = campaign?.effects?.[step.effectId]
+
   function addTile(q, r) {
-    if (affectedTiles.find(t => t.q === q && t.r === r)) return
-    onChange([...affectedTiles, { q, r }], includeSelf)
+    if ((step.selectedTiles || []).find(t => t.q === q && t.r === r)) return
+    onChange({ selectedTiles: [...(step.selectedTiles || []), { q, r }] })
   }
   function removeTile(q, r) {
-    onChange(affectedTiles.filter(t => !(t.q === q && t.r === r)), includeSelf)
+    onChange({ selectedTiles: (step.selectedTiles || []).filter(t => !(t.q === q && t.r === r)) })
   }
+  function toggleChar(charId) {
+    const chars = step.selectedChars || []
+    if (chars.includes(charId)) onChange({ selectedChars: chars.filter(id => id !== charId) })
+    else onChange({ selectedChars: [...chars, charId] })
+  }
+
+  const allChars = Object.values(campaign?.characters || {})
+    .filter(c => !c.hidden)
+    .sort((a, b) => a.name.localeCompare(b.name))
 
   return (
     <div className={styles.affectedWrap}>
-      <label className={styles.stepCheckLabel}>
-        <input type="checkbox" checked={includeSelf} onChange={e => onChange(affectedTiles, e.target.checked)} />
-        Include source tile ({tileQ},{tileR})
-      </label>
-      <div className={styles.affectedList}>
-        {affectedTiles.map(t => (
-          <span key={`${t.q},${t.r}`} className={styles.affectedChip}>
-            ({t.q},{t.r})
-            <button onClick={() => removeTile(t.q, t.r)}>×</button>
-          </span>
-        ))}
+      {/* Effect picker */}
+      <div className={styles.stepRow}>
+        <label>Effect</label>
+        <select value={step.effectId || ''} onChange={e => onChange({ effectId: e.target.value || null, selectedTiles: [], selectedChars: [], aoeRotation: 0 })}>
+          <option value="">— pick an effect —</option>
+          {effects.map(ef => <option key={ef.id} value={ef.id}>{ef.name}</option>)}
+        </select>
       </div>
-      <PortalTilePicker
-        mapId={activeMapId}
-        targetTile={null}
-        label="+ Add tile"
-        onChange={t => { if (t) addTile(t.q, t.r) }}
-      />
+
+      {chosenEffect && (
+        <>
+          {/* Tile targeting */}
+          {(chosenEffect.targetType === 'single_tile' || chosenEffect.targetType === 'tile_aoe' || chosenEffect.targetType === 'tile_select') && (
+            <>
+              <div className={styles.stepRow} style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
+                {chosenEffect.targetType === 'tile_aoe'
+                  ? 'Select the AoE origin tile (pattern radiates from it).'
+                  : chosenEffect.targetType === 'single_tile'
+                  ? 'Select one target tile.'
+                  : `Select up to ${chosenEffect.targetCount || 1} target tile(s).`}
+              </div>
+              <div className={styles.affectedList}>
+                {(step.selectedTiles || []).map(t => (
+                  <span key={`${t.q},${t.r}`} className={styles.affectedChip}>
+                    ({t.q},{t.r})
+                    <button onClick={() => removeTile(t.q, t.r)}>×</button>
+                  </span>
+                ))}
+              </div>
+              <PortalTilePicker
+                mapId={activeMapId}
+                targetTile={null}
+                label="+ Add tile"
+                onChange={t => { if (t) addTile(t.q, t.r) }}
+              />
+              {chosenEffect.targetType === 'tile_aoe' && (
+                <div className={styles.stepRow} style={{ marginTop: 6 }}>
+                  <label>AoE rotation</label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <button className={styles.addTileBtn} onClick={() => onChange({ aoeRotation: (((step.aoeRotation || 0) - 1) % 8 + 8) % 8 })}>↺</button>
+                    <span style={{ fontSize: 12, color: 'var(--accent)', minWidth: 36, textAlign: 'center' }}>{((step.aoeRotation || 0) % 8) * 45}°</span>
+                    <button className={styles.addTileBtn} onClick={() => onChange({ aoeRotation: (((step.aoeRotation || 0) + 1) % 8 + 8) % 8 })}>↻</button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Char targeting */}
+          {chosenEffect.targetType === 'char_select' && (
+            <div className={styles.affectedWrap}>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>
+                Select up to {chosenEffect.targetCount || 1} character(s) to target.
+              </div>
+              <div className={styles.affectedList}>
+                {allChars.map(char => {
+                  const sel = (step.selectedChars || []).includes(char.id)
+                  return (
+                    <button key={char.id}
+                      className={`${styles.affectedChip} ${sel ? styles.affectedChipActive : ''}`}
+                      style={{ cursor: 'pointer', background: sel ? 'rgba(200,169,110,0.2)' : undefined, borderColor: sel ? 'var(--accent)' : undefined }}
+                      onClick={() => toggleChar(char.id)}
+                    >
+                      {char.emoji || '👤'} {char.name}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+        </>
+      )}
     </div>
   )
 }

@@ -1,5 +1,6 @@
-import React, { useState, useRef } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { useStore } from '../../store/useStore'
+import { StatusPill } from '../EffectSystem/StatusLibrary'
 import { TOKEN_EMOJIS } from '../../utils/tokenEmojis'
 import styles from './CharacterSheet.module.css'
 import { useDebouncedField } from '../../utils/useDebouncedStore'
@@ -50,10 +51,15 @@ function DebouncedTextarea({ value, onUpdate, rows = 3, placeholder }) {
 }
 
 export default function CharacterSheet({ characterId, onClose, inline }) {
-  const { campaign, updateCharacter, deleteCharacter } = useStore()
+  const { campaign, updateCharacter, deleteCharacter, removeStatusFromCharacter, restCharacter } = useStore()
   const character = campaign?.characters?.[characterId]
   const [tab, setTab] = useState('info')  // 'info' | 'abilities' | 'items' | 'files'
+  const [traitsDraft, setTraitsDraft] = useState((character?.traits || []).join(', '))
   const [uploadError, setUploadError] = useState(null)
+
+  useEffect(() => {
+    setTraitsDraft((character?.traits || []).join(', '))
+  }, [characterId])
   const [deleteConfirm, setDeleteConfirm] = React.useState(false)
   const portraitInputRef = useRef(null)
   const fileInputRef = useRef(null)
@@ -234,6 +240,27 @@ export default function CharacterSheet({ characterId, onClose, inline }) {
             </div>
           </div>
 
+          {/* Rest */}
+          {(character.abilities || []).some(a => campaign?.abilities?.[a.templateId]?.usesPerRest) && (
+            <div className={styles.section}>
+              <div className={styles.sectionLabel}>Rest</div>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button
+                  onClick={() => restCharacter(characterId, 'short')}
+                  style={{ padding: '5px 12px', borderRadius: 'var(--radius-sm)', border: '0.5px solid var(--border-strong)', background: 'var(--bg-overlay)', color: 'var(--text-secondary)', fontSize: 12, cursor: 'pointer' }}
+                >
+                  Short Rest
+                </button>
+                <button
+                  onClick={() => restCharacter(characterId, 'long')}
+                  style={{ padding: '5px 12px', borderRadius: 'var(--radius-sm)', border: '0.5px solid var(--accent-dim)', background: 'rgba(200,169,110,0.08)', color: 'var(--accent)', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}
+                >
+                  Long Rest
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Notes */}
           <div className={styles.section}>
             <div className={styles.sectionLabel}>Public notes <span className={styles.hint}>(visible to players)</span></div>
@@ -244,6 +271,30 @@ export default function CharacterSheet({ characterId, onClose, inline }) {
             <div className={styles.sectionLabel}>Organizer notes <span className={styles.hint}>(hidden)</span></div>
             <textarea className={styles.notes} rows={3} value={character.notes || ''}
               onChange={e => update('notes', e.target.value)} placeholder="Secrets, motivations, plot hooks…" />
+          </div>
+
+          {/* Traits */}
+          <div className={styles.section}>
+            <div className={styles.sectionLabel}>Traits <span className={styles.hint}>(comma-separated — used for event visibility and status negation)</span></div>
+            <input type="text" className={styles.notes}
+              value={traitsDraft}
+              onChange={e => setTraitsDraft(e.target.value)}
+              onBlur={e => update('traits', e.target.value.split(',').map(s => s.trim()).filter(Boolean))}
+              placeholder="brave, fire-resistant, undead…" />
+          </div>
+
+          {/* Active Statuses */}
+          <div className={styles.section}>
+            <div className={styles.sectionLabel}>Active Statuses</div>
+            {(character.activeStatuses || []).length === 0
+              ? <div className={styles.hint}>No active statuses.</div>
+              : <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {(character.activeStatuses || []).map(({ statusId }) => (
+                    <StatusPill key={statusId} statusId={statusId} campaign={campaign}
+                      onRemove={() => removeStatusFromCharacter(characterId, statusId)} />
+                  ))}
+                </div>
+            }
           </div>
 
           <SheetDiceRoller character={character} />

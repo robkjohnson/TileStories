@@ -1,8 +1,22 @@
 import { create } from 'zustand'
+import { rollDiceExpr } from '../utils/dice'
 
 // ── ID generator ──────────────────────────────────────────────
 export function newId() {
   return Math.random().toString(36).slice(2, 10)
+}
+
+// ── AoE rotation helpers — 45° steps (8 per full rotation) ──
+// Treat axial offsets as 2D Cartesian for trig rotation; round to nearest cell.
+export function rotateAoePattern(pattern, rotation, _isSquare) {
+  if (!rotation || !pattern?.length) return pattern || []
+  const angle = rotation * (Math.PI / 4)
+  const cos = Math.cos(angle)
+  const sin = Math.sin(angle)
+  return pattern.map(({ dq, dr }) => ({
+    dq: Math.round(dq * cos - dr * sin),
+    dr: Math.round(dq * sin + dr * cos),
+  }))
 }
 
 // ── Default tile type definitions (used for migration + new campaigns) ─────
@@ -35,6 +49,7 @@ export function makeTileType(overrides = {}) {
     textColor: '#d4f0da',
     icon: '',
     walkable: true,
+    traits: [],
     statusEffects: [],
     displayBackground: null,
     createdAt: new Date().toISOString(),
@@ -60,6 +75,22 @@ function migrateCampaignTileTypes(campaign) {
   return { ...campaign, tileTypes: makeDefaultTileTypes() }
 }
 
+// Adds statuses/effects collections and character traits/activeStatuses to old campaigns.
+function migrateCampaignEffectSystem(campaign) {
+  const patched = {
+    statuses: {},
+    effects: {},
+    ...campaign,
+  }
+  // Add traits + activeStatuses to characters that lack them
+  const characters = Object.fromEntries(
+    Object.entries(patched.characters || {}).map(([id, c]) => [
+      id, { traits: [], activeStatuses: [], ...c }
+    ])
+  )
+  return { ...patched, characters }
+}
+
 // ── Default factories ─────────────────────────────────────────
 export function makeMap(overrides = {}) {
   return {
@@ -81,13 +112,10 @@ export function makeMap(overrides = {}) {
 
 // ── Event definitions ─────────────────────────────────────────
 export const STEP_TYPES = {
-  storyboard: { label: 'Storyboard',  icon: '🎬', color: '#c8709a', description: 'Show a storyboard scene' },
-  fire:       { label: 'Fire',        icon: '🔥', color: '#c25a4a', description: 'Set tiles on fire (overlay)' },
-  flood:      { label: 'Flood',       icon: '🌊', color: '#2a5a8a', description: 'Flood tiles with water (overlay)' },
-  collapse:   { label: 'Collapse',    icon: '⛰',  color: '#6a6a6a', description: 'Collapse structure (overlay, blocks movement)' },
-  reveal:     { label: 'Reveal',      icon: '👁',  color: '#c8a96e', description: 'Reveal hidden content' },
-  portal:     { label: 'Portal',      icon: '🌀', color: '#7a5ab5', description: 'Teleport tokens to another tile/map' },
-  message:    { label: 'Message',     icon: '💬', color: '#7bc47f', description: 'Show a message to players' },
+  storyboard: { label: 'Storyboard', icon: '🎬', color: '#c8709a', description: 'Show a storyboard scene' },
+  effect:     { label: 'Effect',     icon: '⚡', color: '#c8a96e', description: 'Execute a campaign effect on selected tiles or characters' },
+  portal:     { label: 'Portal',     icon: '🌀', color: '#7a5ab5', description: 'Teleport tokens to another tile/map' },
+  message:    { label: 'Message',    icon: '💬', color: '#7bc47f', description: 'Show a message to players' },
 }
 
 // A step within an event
@@ -95,10 +123,7 @@ export function makeStep(type = 'message', overrides = {}) {
   const base = { id: newId(), type }
   switch (type) {
     case 'storyboard': return { ...base, storyboardId: null, storyboardTarget: 'player', ...overrides }
-    case 'fire':
-    case 'flood':
-    case 'collapse':
-    case 'reveal':     return { ...base, affectedTiles: [], includeSelf: true, ...overrides }
+    case 'effect':     return { ...base, effectId: null, selectedTiles: [], selectedChars: [], aoeRotation: 0, ...overrides }
     case 'portal':     return { ...base, targetMapId: null, targetTile: null, ...overrides }
     case 'message':    return { ...base, text: '', ...overrides }
     default:           return { ...base, ...overrides }
@@ -171,6 +196,8 @@ export function makeCharacter(overrides = {}) {
       speed: 30,
       initiative: 0,
     },
+    traits: [],            // string[] — used for event visibility & status negation
+    activeStatuses: [],    // [{ statusId, appliedAt }]
     notes: '',             // organizer only
     publicNotes: '',       // visible to players (legacy — keep for compat)
     description: '',       // public character description — visible to all players
@@ -263,6 +290,7 @@ export function makeItemTemplate(overrides = {}) {
     tags: [],
     grantedTraits: [],   // [{ id, name, description }]
     abilityIds: [],      // templateIds from ability library
+    effectId: null,      // linked effect from EffectLibrary
     customFields: {},
     createdAt: new Date().toISOString(),
     ...overrides,
@@ -368,6 +396,7 @@ export function makeAbilityTemplate(overrides = {}) {
     // Flavor
     tags: [],                  // free-form string tags
     customFields: {},          // { key: value } organizer extras
+    effectId: null,            // linked effect from EffectLibrary
 
     createdAt: new Date().toISOString(),
     ...overrides,
@@ -380,6 +409,50 @@ export function makeAbilityInstance(templateId, overrides = {}) {
     templateId,
     usesRemaining: null,       // null = use template default; set on rest reset
     overrides: {},             // per-entity tweaks { dc, damageDice, etc }
+    ...overrides,
+  }
+}
+
+// ── Status system ────────────────────────────────────────────
+
+export function makeStatus(overrides = {}) {
+  return {
+    id: newId(),
+    name: 'New Status',
+    description: '',
+    color: '#c25a4a',
+    icon: '⚠️',
+    negatingTraits: [],   // string[] — target having any of these traits blocks this status
+    blocks: [],           // statusId[] — this status prevents these others from being applied
+    eligibleTargets: 'characters', // 'characters' | 'tiles'
+    modifiers: [],        // [{ id, type:'stat'|'setWalkable', stat?, value }]
+    createdAt: new Date().toISOString(),
+    ...overrides,
+  }
+}
+
+export function makeEffect(overrides = {}) {
+  return {
+    id: newId(),
+    name: 'New Effect',
+    description: '',
+    targetType: 'single_tile', // 'single_tile'|'tile_aoe'|'tile_select'|'char_select'
+    targetCount: 1,             // for tile_select and char_select
+    aoePattern: [],             // [{ dq, dr }] offsets relative to root tile
+    durationType: 'one_time',   // 'one_time' | 'lingering'
+    actions: [],                // [{ id, type:'damage'|'apply_status', diceExpr, flatAmount, statusId }]
+    createdAt: new Date().toISOString(),
+    ...overrides,
+  }
+}
+
+export function makeAction(overrides = {}) {
+  return {
+    id: newId(),
+    type: 'damage',
+    diceExpr: '',
+    flatAmount: 0,
+    statusId: null,
     ...overrides,
   }
 }
@@ -421,6 +494,8 @@ export function makeCampaign(overrides = {}) {
     creatures: {},
     abilities: {},             // template library
     items: {},                 // item template library
+    statuses: {},              // status template library
+    effects: {},               // effect template library
     containers: {},            // map containers (chests etc)
     storyboards: {},           // { id: Storyboard }
     story: {},
@@ -444,7 +519,7 @@ export function makeCampaign(overrides = {}) {
 
 // ── Tile helper ───────────────────────────────────────────────
 function makeTile(biome) {
-  return { biome, label: '', notes: '', tokens: [], events: [] }
+  return { biome, label: '', notes: '', tokens: [], events: [], activeStatuses: [] }
 }
 
 // ── Store ─────────────────────────────────────────────────────
@@ -454,7 +529,8 @@ export const useStore = create((set, get) => ({
   campaign: null,
 
   setCampaign(campaign) {
-    set({ campaign: campaign ? migrateCampaignTileTypes(campaign) : campaign })
+    if (!campaign) { set({ campaign: null, effectMode: null }); return }
+    set({ campaign: migrateCampaignEffectSystem(migrateCampaignTileTypes(campaign)), effectMode: null })
   },
 
   updateCampaign(partial) {
@@ -585,6 +661,13 @@ export const useStore = create((set, get) => ({
     const char = campaign.characters[charId] || campaign.creatures?.[charId]
     if (!char) return
 
+    const isCreature = !!campaign.creatures?.[charId]
+
+    // Capture old tile key (same map only) for tile-status cleanup
+    const oldTileKey = (!isCreature && char.currentMapId === mid && char.currentTile)
+      ? `${char.currentTile.q},${char.currentTile.r}`
+      : null
+
     // Build updated tiles for this map — scan every tile and remove this charId
     const updatedTiles = Object.fromEntries(
       Object.entries(destMap.tiles || {}).map(([key, tile]) => [
@@ -623,7 +706,6 @@ export const useStore = create((set, get) => ({
     updatedMaps[mid] = { ...destMap, tiles: updatedTiles }
 
     // Update character's currentMapId and currentTile
-    const isCreature = !!campaign.creatures?.[charId]
     const entityKey = isCreature ? 'creatures' : 'characters'
 
     set(s => ({
@@ -637,6 +719,32 @@ export const useStore = create((set, get) => ({
         updatedAt: new Date().toISOString(),
       }
     }))
+
+    // Tile-status transitions — only for characters, not creatures
+    if (!isCreature) {
+      const { campaign: c2 } = get()
+
+      // Remove statuses applied by the old tile — skip lingering ones
+      if (oldTileKey && oldTileKey !== destKey) {
+        const char2 = c2.characters?.[charId]
+        const tileSourced = (char2?.activeStatuses || []).filter(
+          s => s.sourceTile?.mapId === mid && s.sourceTile?.tileKey === oldTileKey && !s.sourceTile?.lingering
+        )
+        for (const entry of tileSourced) {
+          get().removeStatusFromCharacter(charId, entry.statusId)
+        }
+      }
+
+      // Apply statuses from new tile's active statuses
+      const newTile = c2.maps[mid]?.tiles[destKey]
+      for (const tileEntry of (newTile?.activeStatuses || [])) {
+        const tileStatus = c2.statuses?.[tileEntry.statusId]
+        if (!tileStatus) continue
+        for (const mod of (tileStatus.modifiers || []).filter(m => m.type === 'applyToCharacters')) {
+          get().applyStatusToCharacter(charId, mod.statusId, { mapId: mid, tileKey: destKey, lingering: mod.lingering ?? false })
+        }
+      }
+    }
   },
 
   setTileField(q, r, field, value, mapId) {
@@ -875,6 +983,478 @@ export const useStore = create((set, get) => ({
         },
         updatedAt: new Date().toISOString(),
       }
+    }))
+  },
+
+  // ── Status templates ─────────────────────────────────────────
+  addStatus(data = {}) {
+    const s = makeStatus(data)
+    set(st => ({ campaign: { ...st.campaign, statuses: { ...st.campaign.statuses, [s.id]: s }, updatedAt: new Date().toISOString() } }))
+    return s.id
+  },
+
+  updateStatus(id, partial) {
+    set(st => ({ campaign: { ...st.campaign, statuses: { ...st.campaign.statuses, [id]: { ...st.campaign.statuses[id], ...partial } }, updatedAt: new Date().toISOString() } }))
+  },
+
+  deleteStatus(id) {
+    const campaign = get().campaign
+    if (!campaign) return
+    const statuses = { ...campaign.statuses }
+    delete statuses[id]
+    // Remove from character activeStatuses
+    const characters = Object.fromEntries(
+      Object.entries(campaign.characters || {}).map(([cid, c]) => [
+        cid, { ...c, activeStatuses: (c.activeStatuses || []).filter(s => s.statusId !== id) }
+      ])
+    )
+    // Remove from tile activeStatuses in all maps
+    const maps = Object.fromEntries(
+      Object.entries(campaign.maps || {}).map(([mapId, map]) => [
+        mapId, {
+          ...map,
+          tiles: Object.fromEntries(
+            Object.entries(map.tiles || {}).map(([key, tile]) => [
+              key, { ...tile, activeStatuses: (tile.activeStatuses || []).filter(s => s.statusId !== id) }
+            ])
+          )
+        }
+      ])
+    )
+    // Scrub from effect actions
+    const effects = Object.fromEntries(
+      Object.entries(campaign.effects || {}).map(([eid, e]) => [
+        eid, { ...e, actions: (e.actions || []).filter(a => a.statusId !== id) }
+      ])
+    )
+    // Scrub from other statuses' blocks lists
+    const patchedStatuses = Object.fromEntries(
+      Object.entries(statuses).map(([sid, s]) => [
+        sid, { ...s, blocks: (s.blocks || []).filter(bid => bid !== id) }
+      ])
+    )
+    set(st => ({ campaign: { ...st.campaign, statuses: patchedStatuses, effects, characters, maps, updatedAt: new Date().toISOString() } }))
+  },
+
+  // ── Effect templates ─────────────────────────────────────────
+  addEffect(data = {}) {
+    const e = makeEffect(data)
+    set(st => ({ campaign: { ...st.campaign, effects: { ...st.campaign.effects, [e.id]: e }, updatedAt: new Date().toISOString() } }))
+    return e.id
+  },
+
+  updateEffect(id, partial) {
+    set(st => ({ campaign: { ...st.campaign, effects: { ...st.campaign.effects, [id]: { ...st.campaign.effects[id], ...partial } }, updatedAt: new Date().toISOString() } }))
+  },
+
+  deleteEffect(id) {
+    const effects = { ...get().campaign?.effects }
+    delete effects[id]
+    set(st => ({ campaign: { ...st.campaign, effects, updatedAt: new Date().toISOString() } }))
+  },
+
+  // ── Status application ───────────────────────────────────────
+  applyStatusToCharacter(charId, statusId, sourceTile = null) {
+    const { campaign } = get()
+    if (!campaign) return
+    const char = campaign.characters?.[charId]
+    const status = campaign.statuses?.[statusId]
+    if (!char || !status) return
+    const traits = char.traits || []
+    if (status.negatingTraits.some(t => traits.includes(t))) return
+    const activeStatuses = char.activeStatuses || []
+    if (activeStatuses.some(s => s.statusId === statusId)) return
+    const blockedByExisting = activeStatuses.some(s =>
+      (campaign.statuses?.[s.statusId]?.blocks || []).includes(statusId)
+    )
+    if (blockedByExisting) return
+
+    // Apply stat modifiers — hp is immediate (not reversed on removal), others are tracked
+    const statModifiers = (status.modifiers || []).filter(m => m.type === 'stat')
+    let updatedStats = { ...char.stats }
+    const appliedModifiers = []
+    for (const mod of statModifiers) {
+      updatedStats[mod.stat] = (updatedStats[mod.stat] ?? 0) + mod.value
+      if (mod.stat !== 'hp') appliedModifiers.push({ stat: mod.stat, value: mod.value })
+    }
+    // Clamp hp to maxHp after any changes
+    if (updatedStats.hp !== undefined && updatedStats.maxHp !== undefined) {
+      updatedStats.hp = Math.min(updatedStats.hp, updatedStats.maxHp)
+    }
+
+    const entry = { statusId, appliedAt: new Date().toISOString() }
+    if (appliedModifiers.length > 0) entry.appliedModifiers = appliedModifiers
+    if (sourceTile) entry.sourceTile = sourceTile  // { mapId, tileKey } — removed when char leaves tile
+
+    set(st => ({
+      campaign: {
+        ...st.campaign,
+        characters: {
+          ...st.campaign.characters,
+          [charId]: { ...char, stats: updatedStats, activeStatuses: [...activeStatuses, entry] }
+        },
+        updatedAt: new Date().toISOString(),
+      }
+    }))
+  },
+
+  removeStatusFromCharacter(charId, statusId) {
+    const { campaign } = get()
+    const char = campaign?.characters?.[charId]
+    if (!char) return
+
+    // Reverse tracked stat modifiers (hp changes are intentionally permanent)
+    const entry = (char.activeStatuses || []).find(s => s.statusId === statusId)
+    let updatedStats = { ...char.stats }
+    if (entry?.appliedModifiers?.length > 0) {
+      for (const mod of entry.appliedModifiers) {
+        updatedStats[mod.stat] = (updatedStats[mod.stat] ?? 0) - mod.value
+      }
+      // Clamp hp to new maxHp if max was reduced
+      if (updatedStats.hp !== undefined && updatedStats.maxHp !== undefined) {
+        updatedStats.hp = Math.min(updatedStats.hp, updatedStats.maxHp)
+      }
+    }
+
+    set(st => ({
+      campaign: {
+        ...st.campaign,
+        characters: {
+          ...st.campaign.characters,
+          [charId]: { ...char, stats: updatedStats, activeStatuses: (char.activeStatuses || []).filter(s => s.statusId !== statusId) }
+        },
+        updatedAt: new Date().toISOString(),
+      }
+    }))
+  },
+
+  applyStatusToTile(mapId, tileKey, statusId) {
+    const { campaign } = get()
+    if (!campaign) return
+    const mid = mapId ?? campaign.activeMapId
+    const map = campaign.maps[mid]
+    if (!map) return
+    const tile = map.tiles[tileKey] ?? makeTile(map.defaultBiome)
+    const status = campaign.statuses?.[statusId]
+    if (!status) return
+    const tileTraits = campaign.tileTypes?.[tile.biome]?.traits || []
+    if (status.negatingTraits.some(t => tileTraits.includes(t))) return
+    const activeStatuses = tile.activeStatuses || []
+    if (activeStatuses.some(s => s.statusId === statusId)) return
+
+    // Apply walkable modifier and record original state for later restoration
+    const walkableMod = (status.modifiers || []).find(m => m.type === 'setWalkable')
+    let updatedTile = { ...tile }
+    const entry = { statusId, appliedAt: new Date().toISOString() }
+    if (walkableMod !== undefined) {
+      const tileType = campaign.tileTypes?.[tile.biome]
+      const effectiveWalkable = tile.walkable !== undefined ? tile.walkable : (tileType?.walkable ?? true)
+      entry.originalWalkable = effectiveWalkable
+      updatedTile.walkable = walkableMod.value
+    }
+
+    set(st => ({
+      campaign: {
+        ...st.campaign,
+        maps: {
+          ...st.campaign.maps,
+          [mid]: { ...map, tiles: { ...map.tiles, [tileKey]: { ...updatedTile, activeStatuses: [...activeStatuses, entry] } } }
+        },
+        updatedAt: new Date().toISOString(),
+      }
+    }))
+
+    // Apply applyToCharacters modifiers to any characters already standing on the tile
+    const applyToCharsMods = (status.modifiers || []).filter(m => m.type === 'applyToCharacters')
+    if (applyToCharsMods.length > 0) {
+      const { campaign: updated } = get()
+      const charsOnTile = (updated.maps[mid]?.tiles[tileKey]?.tokens || [])
+        .filter(id => updated.characters?.[id])
+      for (const cid of charsOnTile) {
+        for (const mod of applyToCharsMods) {
+          get().applyStatusToCharacter(cid, mod.statusId, { mapId: mid, tileKey, lingering: mod.lingering ?? false })
+        }
+      }
+    }
+  },
+
+  removeStatusFromTile(mapId, tileKey, statusId) {
+    const { campaign } = get()
+    if (!campaign) return
+    const mid = mapId ?? campaign.activeMapId
+    const map = campaign.maps[mid]
+    if (!map) return
+    const tile = map.tiles[tileKey]
+    if (!tile) return
+
+    // Remove tile-sourced statuses from characters on the tile before clearing the tile status
+    const status = campaign.statuses?.[statusId]
+    const applyToCharsMods = (status?.modifiers || []).filter(m => m.type === 'applyToCharacters')
+    if (applyToCharsMods.length > 0) {
+      const charsOnTile = (tile.tokens || []).filter(id => campaign.characters?.[id])
+      for (const cid of charsOnTile) {
+        const char = campaign.characters[cid]
+        for (const mod of applyToCharsMods) {
+          const hasTileEntry = (char.activeStatuses || []).some(
+            s => s.statusId === mod.statusId && s.sourceTile?.tileKey === tileKey && s.sourceTile?.mapId === mid
+          )
+          if (hasTileEntry && !mod.lingering) get().removeStatusFromCharacter(cid, mod.statusId)
+        }
+      }
+    }
+
+    // Restore original walkable state if this status modified it
+    const entry = (tile.activeStatuses || []).find(s => s.statusId === statusId)
+    let updatedTile = { ...tile }
+    if (entry && 'originalWalkable' in entry) {
+      updatedTile.walkable = entry.originalWalkable
+    }
+
+    set(st => ({
+      campaign: {
+        ...st.campaign,
+        maps: {
+          ...st.campaign.maps,
+          [mid]: { ...map, tiles: { ...map.tiles, [tileKey]: { ...updatedTile, activeStatuses: (tile.activeStatuses || []).filter(s => s.statusId !== statusId) } } }
+        },
+        updatedAt: new Date().toISOString(),
+      }
+    }))
+  },
+
+  applyDamageToCharacter(charId, amount) {
+    const { campaign } = get()
+    const char = campaign?.characters?.[charId]
+    if (!char) return
+    const newHp = Math.max(0, (char.stats?.hp ?? 0) - amount)
+    set(st => ({
+      campaign: {
+        ...st.campaign,
+        characters: { ...st.campaign.characters, [charId]: { ...char, stats: { ...char.stats, hp: newHp } } },
+        updatedAt: new Date().toISOString(),
+      }
+    }))
+  },
+
+  // ── Execute an effect against selected targets ────────────────
+  executeEffect() {
+    const { campaign, effectMode } = get()
+    if (!effectMode || !campaign) return
+
+    const effect = campaign.effects?.[effectMode.effectId]
+    if (!effect) { set({ effectMode: null }); return }
+
+    const { selectedTiles, selectedChars, aoeRotation = 0 } = effectMode
+    const mapId = campaign.activeMapId
+    const activeMap = campaign.maps[mapId]
+    const now = new Date().toISOString()
+    const results = []
+    const isSquare = activeMap?.tileStyle === 'square'
+
+    // Resolve affected tiles
+    let affectedTiles = []
+    if (effect.targetType === 'single_tile') {
+      affectedTiles = selectedTiles.slice(0, 1)
+    } else if (effect.targetType === 'tile_aoe') {
+      if (selectedTiles.length > 0) {
+        const root = selectedTiles[0]
+        const rotated = rotateAoePattern(effect.aoePattern, aoeRotation, isSquare)
+        const aoe = [root, ...rotated.map(({ dq, dr }) => ({ q: root.q + dq, r: root.r + dr }))]
+        affectedTiles = aoe.filter(t => t.q >= 0 && t.q < activeMap.cols && t.r >= 0 && t.r < activeMap.rows)
+      }
+    } else if (effect.targetType === 'tile_select') {
+      affectedTiles = selectedTiles
+    }
+
+    // Resolve affected characters — from tiles + explicit char selection
+    let affectedCharIds = [...selectedChars]
+    if (effect.targetType !== 'char_select') {
+      affectedTiles.forEach(({ q, r }) => {
+        const tile = activeMap?.tiles?.[`${q},${r}`]
+        if (tile?.tokens) affectedCharIds = [...affectedCharIds, ...tile.tokens]
+      })
+    }
+    affectedCharIds = [...new Set(affectedCharIds)]
+
+    // Execute actions
+    let updatedChars = { ...campaign.characters }
+    let updatedMaps = { ...campaign.maps }
+
+    effect.actions.forEach(action => {
+      if (action.type === 'damage') {
+        const rolled = action.diceExpr ? rollDiceExpr(action.diceExpr) : 0
+        const total = rolled + (action.flatAmount || 0)
+        if (total <= 0) return
+        affectedCharIds.forEach(charId => {
+          const char = updatedChars[charId]
+          if (!char) return
+          const newHp = Math.max(0, (char.stats?.hp ?? 0) - total)
+          updatedChars[charId] = { ...char, stats: { ...char.stats, hp: newHp } }
+          results.push({ charId, name: char.name, damage: total, newHp })
+        })
+      } else if (action.type === 'apply_status') {
+        const status = campaign.statuses?.[action.statusId]
+        if (!status) return
+        // Apply to characters
+        affectedCharIds.forEach(charId => {
+          const char = updatedChars[charId]
+          if (!char) return
+          const traits = char.traits || []
+          if (status.negatingTraits.some(t => traits.includes(t))) return
+          const actives = char.activeStatuses || []
+          if (actives.some(s => s.statusId === action.statusId)) return
+          if (actives.some(s => (campaign.statuses?.[s.statusId]?.blocks || []).includes(action.statusId))) return
+          updatedChars[charId] = { ...char, activeStatuses: [...actives, { statusId: action.statusId, appliedAt: now }] }
+        })
+        // Apply to affected tiles
+        affectedTiles.forEach(({ q, r }) => {
+          const key = `${q},${r}`
+          const curMap = updatedMaps[mapId]
+          const tile = curMap?.tiles?.[key] ?? makeTile(curMap?.defaultBiome || 'grassland')
+          const tileTraits = campaign.tileTypes?.[tile.biome]?.traits || []
+          if (status.negatingTraits.some(t => tileTraits.includes(t))) return
+          const actives = tile.activeStatuses || []
+          if (actives.some(s => s.statusId === action.statusId)) return
+          updatedMaps = {
+            ...updatedMaps,
+            [mapId]: {
+              ...updatedMaps[mapId],
+              tiles: { ...updatedMaps[mapId].tiles, [key]: { ...tile, activeStatuses: [...actives, { statusId: action.statusId, appliedAt: now }] } }
+            }
+          }
+        })
+      }
+    })
+
+    set(st => ({
+      campaign: { ...st.campaign, characters: updatedChars, maps: updatedMaps, updatedAt: now },
+      effectMode: null,
+      lastEffectResults: results.length > 0 ? results : null,
+    }))
+  },
+
+  // ── Rest character — reset ability uses ──────────────────────
+  restCharacter(characterId, restType = 'long') {
+    const { campaign } = get()
+    if (!campaign) return
+    const char = campaign.characters?.[characterId]
+    if (!char) return
+    const abilities = (char.abilities || []).map(a => {
+      const tmpl = campaign.abilities?.[a.templateId]
+      if (!tmpl?.usesPerRest) return a
+      if (restType === 'short' && tmpl.restType !== 'short') return a
+      return { ...a, usesRemaining: tmpl.usesPerRest }
+    })
+    set(s => ({
+      campaign: {
+        ...s.campaign,
+        characters: { ...s.campaign.characters, [characterId]: { ...char, abilities } },
+        updatedAt: new Date().toISOString(),
+      }
+    }))
+  },
+
+  // ── Execute effect triggered by a player via websocket ───────
+  executeEffectFromPlayer({ characterId, effectId, sourceType, sourceId, selectedTiles = [], selectedChars = [], aoeRotation = 0 }) {
+    const { campaign } = get()
+    if (!campaign) return
+    const effect = campaign.effects?.[effectId]
+    if (!effect) return
+    const mapId = campaign.activeMapId
+    const activeMap = campaign.maps[mapId]
+    const now = new Date().toISOString()
+    const isSquare = activeMap?.tileStyle === 'square'
+    const results = []
+
+    let updatedChars = { ...campaign.characters }
+    let updatedMaps = { ...campaign.maps }
+
+    // Deduct uses from source character's ability
+    if (characterId && sourceType === 'ability' && sourceId) {
+      const sourceChar = updatedChars[characterId]
+      if (sourceChar) {
+        const newAbilities = (sourceChar.abilities || []).map(a => {
+          if (a.templateId !== sourceId) return a
+          const tmpl = campaign.abilities?.[a.templateId]
+          if (!tmpl?.usesPerRest) return a
+          const cur = a.usesRemaining ?? tmpl.usesPerRest
+          return { ...a, usesRemaining: Math.max(0, cur - 1) }
+        })
+        updatedChars[characterId] = { ...sourceChar, abilities: newAbilities }
+      }
+    }
+
+    // Resolve affected tiles
+    let affectedTiles = []
+    if (effect.targetType === 'single_tile') {
+      affectedTiles = selectedTiles.slice(0, 1)
+    } else if (effect.targetType === 'tile_aoe') {
+      if (selectedTiles.length > 0) {
+        const root = selectedTiles[0]
+        const rotated = rotateAoePattern(effect.aoePattern, aoeRotation, isSquare)
+        const aoe = [root, ...rotated.map(({ dq, dr }) => ({ q: root.q + dq, r: root.r + dr }))]
+        affectedTiles = aoe.filter(t => t.q >= 0 && t.q < activeMap.cols && t.r >= 0 && t.r < activeMap.rows)
+      }
+    } else if (effect.targetType === 'tile_select') {
+      affectedTiles = selectedTiles
+    }
+
+    let affectedCharIds = [...selectedChars]
+    if (effect.targetType !== 'char_select') {
+      affectedTiles.forEach(({ q, r }) => {
+        const tile = activeMap?.tiles?.[`${q},${r}`]
+        if (tile?.tokens) affectedCharIds = [...affectedCharIds, ...tile.tokens]
+      })
+    }
+    affectedCharIds = [...new Set(affectedCharIds)]
+
+    effect.actions.forEach(action => {
+      if (action.type === 'damage') {
+        const rolled = action.diceExpr ? rollDiceExpr(action.diceExpr) : 0
+        const total = rolled + (action.flatAmount || 0)
+        if (total <= 0) return
+        affectedCharIds.forEach(charId => {
+          const char = updatedChars[charId]
+          if (!char) return
+          const newHp = Math.max(0, (char.stats?.hp ?? 0) - total)
+          updatedChars[charId] = { ...char, stats: { ...char.stats, hp: newHp } }
+          results.push({ charId, name: char.name, damage: total, newHp })
+        })
+      } else if (action.type === 'apply_status') {
+        const status = campaign.statuses?.[action.statusId]
+        if (!status) return
+        affectedCharIds.forEach(charId => {
+          const char = updatedChars[charId]
+          if (!char) return
+          const traits = char.traits || []
+          if (status.negatingTraits.some(t => traits.includes(t))) return
+          const actives = char.activeStatuses || []
+          if (actives.some(s => s.statusId === action.statusId)) return
+          if (actives.some(s => (campaign.statuses?.[s.statusId]?.blocks || []).includes(action.statusId))) return
+          updatedChars[charId] = { ...char, activeStatuses: [...actives, { statusId: action.statusId, appliedAt: now }] }
+        })
+        affectedTiles.forEach(({ q, r }) => {
+          const key = `${q},${r}`
+          const curMap = updatedMaps[mapId]
+          const tile = curMap?.tiles?.[key] ?? makeTile(curMap?.defaultBiome || 'grassland')
+          const tileTraits = campaign.tileTypes?.[tile.biome]?.traits || []
+          if (status.negatingTraits.some(t => tileTraits.includes(t))) return
+          const actives = tile.activeStatuses || []
+          if (actives.some(s => s.statusId === action.statusId)) return
+          updatedMaps = {
+            ...updatedMaps,
+            [mapId]: {
+              ...updatedMaps[mapId],
+              tiles: { ...updatedMaps[mapId].tiles, [key]: { ...tile, activeStatuses: [...actives, { statusId: action.statusId, appliedAt: now }] } }
+            }
+          }
+        })
+      }
+    })
+
+    set(st => ({
+      campaign: { ...st.campaign, characters: updatedChars, maps: updatedMaps, updatedAt: now },
+      lastEffectResults: results.length > 0 ? results : null,
     }))
   },
 
@@ -1217,26 +1797,61 @@ export const useStore = create((set, get) => ({
     let didSwitchMap = false
     let switchToMap = null
 
-    const OVERLAY_COLORS = { fire: '#c25a4a', flood: '#2a5a8a', collapse: '#6a6a6a', reveal: '#c8a96e' }
-
     steps.forEach(step => {
-      const affected = step.includeSelf !== false
-        ? [{ q: tileQ, r: tileR }, ...(step.affectedTiles || [])]
-        : (step.affectedTiles || [])
-
       switch (step.type) {
-        case 'fire':
-        case 'flood':
-        case 'reveal': {
-          const color = OVERLAY_COLORS[step.type]
-          affected.forEach(({ q, r }) => {
-            newFiredEvents[`${q},${r}`] = { color, label: ev.name, type: step.type, firedAt }
-          })
-          break
-        }
-        case 'collapse': {
-          affected.forEach(({ q, r }) => {
-            newFiredEvents[`${q},${r}`] = { color: '#6a6a6a', label: ev.name, type: 'collapse', blocked: true, firedAt }
+        case 'effect': {
+          const eff = campaign.effects?.[step.effectId]
+          if (!eff) break
+          const isSquare = map.tileStyle === 'square'
+          const { selectedTiles = [], selectedChars = [], aoeRotation = 0 } = step
+          let affTiles = []
+          if (eff.targetType === 'single_tile') {
+            affTiles = selectedTiles.slice(0, 1)
+          } else if (eff.targetType === 'tile_aoe' && selectedTiles.length > 0) {
+            const root = selectedTiles[0]
+            const rotated = rotateAoePattern(eff.aoePattern || [], aoeRotation, isSquare)
+            affTiles = [root, ...rotated.map(({ dq, dr }) => ({ q: root.q + dq, r: root.r + dr }))]
+              .filter(t => t.q >= 0 && t.q < map.cols && t.r >= 0 && t.r < map.rows)
+          } else if (eff.targetType === 'tile_select') {
+            affTiles = selectedTiles
+          }
+          let affCharIds = [...selectedChars]
+          if (eff.targetType !== 'char_select') {
+            affTiles.forEach(({ q, r }) => {
+              const t = (updatedMaps[mid]?.tiles || {})[`${q},${r}`]
+              if (t?.tokens) affCharIds = [...affCharIds, ...t.tokens]
+            })
+          }
+          affCharIds = [...new Set(affCharIds)]
+          const now2 = new Date().toISOString()
+          ;(eff.actions || []).forEach(action => {
+            if (action.type === 'damage') {
+              const total = (action.diceExpr ? rollDiceExpr(action.diceExpr) : 0) + (action.flatAmount || 0)
+              if (total <= 0) return
+              affCharIds.forEach(charId => {
+                const char = updatedChars[charId]
+                if (!char) return
+                updatedChars[charId] = { ...char, stats: { ...char.stats, hp: Math.max(0, (char.stats?.hp ?? 0) - total) } }
+              })
+            } else if (action.type === 'apply_status') {
+              const status = campaign.statuses?.[action.statusId]
+              if (!status) return
+              affCharIds.forEach(charId => {
+                const char = updatedChars[charId]
+                if (!char) return
+                const actives = char.activeStatuses || []
+                if (actives.some(s => s.statusId === action.statusId)) return
+                updatedChars[charId] = { ...char, activeStatuses: [...actives, { statusId: action.statusId, appliedAt: now2 }] }
+              })
+              affTiles.forEach(({ q, r }) => {
+                const k2 = `${q},${r}`
+                const curMap2 = updatedMaps[mid]
+                const tile2 = curMap2?.tiles?.[k2] ?? { biome: map.defaultBiome }
+                const actives = tile2.activeStatuses || []
+                if (actives.some(s => s.statusId === action.statusId)) return
+                updatedMaps = { ...updatedMaps, [mid]: { ...updatedMaps[mid], tiles: { ...updatedMaps[mid].tiles, [k2]: { ...tile2, activeStatuses: [...actives, { statusId: action.statusId, appliedAt: now2 }] } } } }
+              })
+            }
           })
           break
         }
@@ -1276,13 +1891,21 @@ export const useStore = create((set, get) => ({
       campaign: {
         ...s.campaign,
         activeMapId: didSwitchMap ? switchToMap : s.campaign.activeMapId,
+        characters: updatedChars,
         maps: {
           ...s.campaign.maps,
           [mid]: {
             ...latestMap,
             firedEvents: newFiredEvents,
             eventLog: [...(latestMap.eventLog || []), logEntry],
-            tiles: { ...latestMap.tiles, [key]: { ...latestMap.tiles[key], events: updatedEvents } },
+            tiles: {
+              ...latestMap.tiles,
+              ...(updatedMaps[mid]?.tiles || {}),
+              [key]: {
+                ...(updatedMaps[mid]?.tiles?.[key] || latestMap.tiles[key]),
+                events: updatedEvents,
+              },
+            },
           }
         },
         updatedAt: firedAt,
@@ -1364,11 +1987,14 @@ export const useStore = create((set, get) => ({
   showCoords: false,
   showAllLabels: false,   // organizer global toggle — show all tile labels at once
   labelSize: parseFloat(localStorage.getItem('tilestories_labelSize') || '1'),
+  statusIconSize: parseFloat(localStorage.getItem('tilestories_statusIconSize') || '1'),
   displayLabelSize: parseFloat(localStorage.getItem('tilestories_displayLabelSize') || '1'),
   inspectorOpen: true,
   // Tile selection mode — when active, map clicks toggle tiles in a list
   tileSelectionMode: null,
   portalPickMode: null,  // { originMapId, onPick: fn(tile) } — for portal destination picking
+  effectMode: null,      // { effectId, selectedTiles: [{q,r}], selectedChars: [id] } | null
+  lastEffectResults: null, // [{ charId, name, damage, newHp }] after executeEffect
 
   // Viewer context — who is currently looking at the map
   // 'organizer' sees everything; 'player' is filtered by visibility + traits
@@ -1383,6 +2009,7 @@ export const useStore = create((set, get) => ({
   toggleCoords: () => set(s => ({ showCoords: !s.showCoords })),
   toggleAllLabels: () => set(s => ({ showAllLabels: !s.showAllLabels })),
   setLabelSize: (v) => { localStorage.setItem('tilestories_labelSize', v); set({ labelSize: v }) },
+  setStatusIconSize: (v) => { localStorage.setItem('tilestories_statusIconSize', v); set({ statusIconSize: v }) },
   setDisplayLabelSize: (v) => { localStorage.setItem('tilestories_displayLabelSize', v); set({ displayLabelSize: v }) },
   setInspectorOpen: (v) => set({ inspectorOpen: v }),
   setViewerMode: (mode) => set({ viewerMode: mode }),
@@ -1415,6 +2042,46 @@ export const useStore = create((set, get) => ({
   },
   setCamera: (cam) => set({ camera: cam }),
   updateCamera: (partial) => set(s => ({ camera: { ...s.camera, ...partial } })),
+
+  startEffectMode: (effectId) => set({ effectMode: { effectId, selectedTiles: [], selectedChars: [], aoeRotation: 0 } }),
+  cancelEffectMode: () => set({ effectMode: null }),
+
+  rotateEffectAoe: (dir) => set(s => ({
+    effectMode: s.effectMode
+      ? { ...s.effectMode, aoeRotation: (((s.effectMode.aoeRotation ?? 0) + (dir === 'cw' ? 1 : -1)) % 8 + 8) % 8 }
+      : null
+  })),
+  clearEffectResults: () => set({ lastEffectResults: null }),
+
+  setEffectRootTile: (q, r) => set(s => ({
+    effectMode: s.effectMode ? { ...s.effectMode, selectedTiles: [{ q, r }] } : null
+  })),
+
+  toggleEffectTile: (q, r) => set(s => {
+    if (!s.effectMode) return {}
+    const tiles = s.effectMode.selectedTiles
+    const exists = tiles.find(t => t.q === q && t.r === r)
+    return {
+      effectMode: {
+        ...s.effectMode,
+        selectedTiles: exists
+          ? tiles.filter(t => !(t.q === q && t.r === r))
+          : [...tiles, { q, r }]
+      }
+    }
+  }),
+
+  toggleEffectChar: (charId) => set(s => {
+    if (!s.effectMode) return {}
+    const chars = s.effectMode.selectedChars
+    const exists = chars.includes(charId)
+    return {
+      effectMode: {
+        ...s.effectMode,
+        selectedChars: exists ? chars.filter(id => id !== charId) : [...chars, charId]
+      }
+    }
+  }),
 }))
 
 // ── Storyboard model ──────────────────────────────────────────

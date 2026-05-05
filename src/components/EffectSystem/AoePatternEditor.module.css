@@ -1,0 +1,143 @@
+.overlay {
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(0,0,0,0.6);
+  display: flex; align-items: center; justify-content: center;
+}
+
+.popover {
+  background: var(--bg-raised); border: 1px solid var(--border-strong);
+  border-radius: var(--radius); padding: 20px;
+  display: flex; flex-direction: column; gap: 14px;
+  width: 340px; box-shadow: 0 12px 40px rgba(0,0,0,0.6);
+}
+
+/* Header */
+.header { display: flex; align-items: center; justify-content: space-between; }
+.title { font-size: 15px; font-weight: 700; color: var(--text-primary); }
+.closeBtn {
+  background: none; border: none; color: var(--text-muted);
+  font-size: 20px; cursor: pointer; line-height: 1; padding: 0 4px;
+}
+.closeBtn:hover { color: var(--text-primary); }
+
+/* Mode bar */
+.modeBar { display: flex; gap: 6px; align-items: center; }
+.modeBtn {
+  flex: 1; padding: 7px 10px; border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong); background: var(--bg-overlay);
+  color: var(--text-muted); font-size: 12px; cursor: pointer; transition: all 0.1s;
+}
+.modeBtn:hover { color: var(--text-primary); border-color: var(--border-strong); }
+.modeBtnActive {
+  background: rgba(91,155,213,0.18) !important;
+  border-color: #5b9bd5 !important;
+  color: #5b9bd5 !important;
+  font-weight: 600;
+}
+.modeBtnRoot:not(.modeBtnActive) { color: var(--accent); border-color: var(--accent-dim); }
+.clearBtn {
+  padding: 7px 10px; border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong); background: transparent;
+  color: var(--text-muted); font-size: 12px; cursor: pointer;
+}
+.clearBtn:hover { color: #c25a4a; border-color: #c25a4a; }
+
+/* Mode hint */
+.modeHint {
+  font-size: 11px; color: var(--text-muted); line-height: 1.5;
+  padding: 6px 10px; background: var(--bg-overlay); border-radius: var(--radius-sm);
+  border-left: 2px solid var(--border-strong);
+}
+.modeHint strong { color: var(--accent); }
+.moveHint { color: var(--accent); font-weight: 500; }
+
+/* Grid */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+}
+
+.cell {
+  aspect-ratio: 1;
+  border: 2px solid var(--border-strong);
+  background: var(--bg-overlay);
+  cursor: pointer;
+  font-size: 0;
+  transition: background 0.1s, border-color 0.1s, transform 0.05s;
+  border-radius: 4px;
+  display: flex; align-items: center; justify-content: center;
+  min-height: 48px;
+  position: relative;
+}
+.cell:hover:not(.cellRoot) {
+  background: var(--bg-raised);
+  border-color: var(--accent-dim);
+  transform: scale(1.05);
+}
+
+/* Hex shape — clip outer div, inner content visible */
+.cellHex {
+  border-radius: 0;
+  clip-path: polygon(50% 0%, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%);
+  border: none;
+  outline: 2px solid var(--border-strong);
+  outline-offset: -2px;
+}
+.cellHex.cellSelected { outline-color: #5b9bd5; }
+.cellHex.cellRoot { outline-color: var(--accent); outline-width: 3px; }
+.cellHex.cellMoveable { outline-color: var(--accent-dim); outline-style: dashed; }
+.cellHex:hover:not(.cellRoot) { outline-color: var(--accent-dim); }
+
+/* States */
+.cellSelected {
+  background: rgba(91,155,213,0.30) !important;
+  border-color: #5b9bd5;
+}
+.cellRoot {
+  background: rgba(200,169,110,0.22) !important;
+  border-color: var(--accent);
+  border-width: 2.5px;
+  cursor: default;
+}
+.cellMoveable:not(.cellRoot) {
+  border-color: var(--accent-dim);
+  border-style: dashed;
+  cursor: crosshair;
+}
+.cellMoveable:not(.cellRoot):hover {
+  background: rgba(200,169,110,0.15) !important;
+  border-color: var(--accent);
+}
+
+/* Cell content */
+.rootStar {
+  font-size: 18px;
+  color: var(--accent);
+  line-height: 1;
+  display: block;
+}
+.selectedDot {
+  font-size: 14px;
+  color: #5b9bd5;
+  line-height: 1;
+  display: block;
+}
+
+/* Stats row */
+.stats {
+  display: flex; gap: 10px; align-items: center;
+  font-size: 11px; padding: 6px 8px;
+  background: var(--bg-overlay); border-radius: var(--radius-sm);
+}
+.statRoot { color: var(--accent); font-weight: 600; }
+.statSelected { color: #5b9bd5; font-weight: 500; }
+.statTotal { color: var(--text-muted); margin-left: auto; }
+
+/* Confirm */
+.confirmBtn {
+  padding: 10px 20px; border-radius: var(--radius-sm);
+  border: none; background: var(--accent); color: var(--bg-primary);
+  font-size: 13px; font-weight: 700; cursor: pointer; width: 100%;
+}
+.confirmBtn:hover { opacity: 0.9; }
