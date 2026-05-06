@@ -43,6 +43,8 @@ export function makeDefaultTileTypes() {
         traits: [],
         statusEffects: [],
         displayBackground: null,
+        overlay: false,
+        overlayOpacity: 0.5,
         createdAt: new Date().toISOString(),
       },
     ])
@@ -61,6 +63,8 @@ export function makeTileType(overrides = {}) {
     traits: [],
     statusEffects: [],
     displayBackground: null,
+    overlay: false,
+    overlayOpacity: 0.5,
     createdAt: new Date().toISOString(),
     ...overrides,
   }
@@ -77,6 +81,12 @@ export function makeMap(overrides = {}) {
     defaultBiome: 'grassland',
     parentMapId: null,          // for nested/sub-maps
     tileStyle: 'hex',           // 'hex' | 'square'
+    backgroundImage: null,      // base64 image — rendered behind the tile grid
+    bgImgWidth: null,           // natural pixel width of backgroundImage (for aspect ratio)
+    bgImgHeight: null,          // natural pixel height of backgroundImage
+    bgCols: null,               // how many tile-columns the image spans (null = map.cols)
+    bgOffsetX: 0,               // horizontal shift in tile units (can be fractional)
+    bgOffsetY: 0,               // vertical shift in tile units (can be fractional)
     tiles: {},                  // { 'q,r': Tile }
     firedEvents: {},            // { 'q,r': { color, label, firedAt } } — active visual overlays
     eventLog: [],               // [{ id, eventId, eventName, sourceTile, firedAt }]

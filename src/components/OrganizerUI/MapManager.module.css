@@ -84,3 +84,175 @@
   font-size: 11px;
   color: var(--text-muted);
 }
+
+/* ── Background image section ──────────────────────────────── */
+.bgSection {
+  border-top: 0.5px solid var(--border);
+  padding-top: 6px;
+}
+
+.bgAddBtn {
+  width: 100%;
+  padding: 4px 8px;
+  font-size: 11px;
+  color: var(--text-muted);
+  background: none;
+  border: 0.5px dashed var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  text-align: center;
+  transition: color 0.1s, border-color 0.1s;
+}
+.bgAddBtn:hover { color: var(--text-secondary); border-color: var(--border-strong); }
+
+.bgActive {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.bgThumb {
+  width: 52px;
+  height: 40px;
+  object-fit: cover;
+  border-radius: 3px;
+  border: 0.5px solid var(--border);
+  flex-shrink: 0;
+}
+
+.bgControls {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+/* Tile size slider */
+.bgSliderLabel {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 4px;
+}
+.bgSliderEndLabel {
+  font-size: 9px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+.bgSliderCols {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-align: center;
+  flex: 1;
+}
+.bgSlider {
+  width: 100%;
+  accent-color: var(--accent);
+  cursor: pointer;
+  height: 14px;
+}
+
+/* Offset inputs */
+.bgOffsetRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.bgOffsetField {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  color: var(--text-muted);
+  cursor: default;
+}
+.bgOffsetInput {
+  width: 42px;
+  padding: 2px 3px;
+  border-radius: 3px;
+  border: 0.5px solid var(--border-strong);
+  background: var(--bg-overlay);
+  color: var(--text-primary);
+  font-size: 11px;
+  text-align: center;
+}
+.bgOffsetInput:focus { outline: none; border-color: var(--accent); }
+.bgOffsetHint {
+  font-size: 9px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.bgRemoveBtn {
+  padding: 2px 0;
+  font-size: 10px;
+  color: var(--text-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  text-decoration: underline;
+  opacity: 0.7;
+}
+.bgRemoveBtn:hover { opacity: 1; color: var(--text-secondary); }
+
+/* ── New map bg image controls ─────────────────────────────── */
+.newBgRow {
+  margin: 2px 0;
+}
+
+.newBgHas {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.newBgThumb {
+  width: 60px;
+  height: 40px;
+  object-fit: cover;
+  border-radius: 3px;
+  border: 0.5px solid var(--border);
+  flex-shrink: 0;
+}
+
+.newBgRemove {
+  font-size: 10px;
+  color: var(--text-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 3px;
+}
+.newBgRemove:hover { color: var(--text-secondary); background: var(--bg-overlay); }
+
+.newBgSizeBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px 0;
+}
+
+/* ── Default biome picker ──────────────────── */
+.biomePickerGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+.biomeChip {
+  width: 22px;
+  height: 22px;
+  border-radius: 3px;
+  border: 1.5px solid;
+  cursor: pointer;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  outline-offset: 2px;
+  transition: transform 0.1s;
+  padding: 0;
+}

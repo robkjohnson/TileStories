@@ -19,6 +19,7 @@ export default function HexGrid() {
   const dropTargetHex = useRef(null)
   const pendingSelect = useRef(undefined)   // undefined = no pending; null/{q,r} = has pending
   const mouseDownPos = useRef(null)
+  const bgImgRef = useRef(null)             // loaded HTMLImageElement for map background
 
   const store = useStore()
   const storeRef = useRef(store)
@@ -56,6 +57,27 @@ export default function HexGrid() {
 
     const pendingLabels = []
 
+    // ── Background image (drawn before tiles so grid overlays on top) ──
+    if (activeMap.backgroundImage && bgImgRef.current) {
+      const img   = bgImgRef.current
+      const bgCol = activeMap.bgCols    ?? activeMap.cols
+      const offX  = activeMap.bgOffsetX ?? 0
+      const offY  = activeMap.bgOffsetY ?? 0
+      const SQRT3 = Math.sqrt(3)
+      let worldX, worldY, worldW, worldH
+      if (isSquare) {
+        worldX = offX * BASE_SIZE
+        worldY = offY * BASE_SIZE
+        worldW = bgCol * BASE_SIZE
+      } else {
+        worldX = -HEX_SIZE + offX * HEX_SIZE * 1.5
+        worldY = -(HEX_SIZE * SQRT3 / 2) + offY * HEX_SIZE * SQRT3
+        worldW = HEX_SIZE * (bgCol * 1.5 + 0.5)
+      }
+      worldH = worldW * (img.naturalHeight / img.naturalWidth)
+      ctx.drawImage(img, worldX * zoom + camX, worldY * zoom + camY, worldW * zoom, worldH * zoom)
+    }
+
     for (let q = 0; q < activeMap.cols; q++) {
       for (let r = 0; r < activeMap.rows; r++) {
         const key = `${q},${r}`
@@ -74,8 +96,16 @@ export default function HexGrid() {
         for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y)
         ctx.closePath()
 
-        ctx.fillStyle = biome.color
-        ctx.fill()
+        if (!activeMap.backgroundImage) {
+          ctx.fillStyle = biome.color
+          ctx.fill()
+        } else if (biome.overlay) {
+          const cr = parseInt(biome.color.slice(1, 3), 16)
+          const cg = parseInt(biome.color.slice(3, 5), 16)
+          const cb = parseInt(biome.color.slice(5, 7), 16)
+          ctx.fillStyle = `rgba(${cr},${cg},${cb},${biome.overlayOpacity ?? 0.5})`
+          ctx.fill()
+        }
 
         const isSelected = selectedTile?.q === q && selectedTile?.r === r
         const isHovered = hoveredTile.current?.q === q && hoveredTile.current?.r === r
@@ -602,6 +632,18 @@ export default function HexGrid() {
     fitMap()
     draw()
   }, [store.campaign?.activeMapId]) // eslint-disable-line
+
+  // Load background image whenever the active map's backgroundImage changes
+  const activeBgSrc = store.campaign?.maps?.[store.campaign?.activeMapId]?.backgroundImage ?? null
+  useEffect(() => {
+    if (!activeBgSrc) { bgImgRef.current = null; return }
+    let cancelled = false
+    bgImgRef.current = null
+    const img = new Image()
+    img.onload = () => { if (!cancelled) { bgImgRef.current = img; draw() } }
+    img.src = activeBgSrc
+    return () => { cancelled = true }
+  }, [activeBgSrc]) // eslint-disable-line
 
   // Redraw on every store change
   useEffect(() => { draw() })

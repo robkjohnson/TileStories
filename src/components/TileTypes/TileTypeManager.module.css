@@ -240,12 +240,65 @@
   padding: 1px; cursor: pointer; background: transparent;
 }
 
-.walkableLabel {
-  display: flex; align-items: center; gap: 6px;
-  font-size: 12px; color: var(--text-secondary); cursor: pointer;
+/* ── Toggle chip controls (walkable / overlay) ── */
+.toggleRow {
+  display: flex; align-items: center; gap: 5px;
 }
-.walkableLabel input { cursor: pointer; }
-.walkableHint { font-size: 10px; color: var(--text-muted); margin-left: 2px; }
+.toggleLabel {
+  font-size: 10px; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: 0.06em;
+  flex-shrink: 0; min-width: 60px;
+}
+.toggleHint {
+  font-size: 10px; color: var(--text-muted);
+  margin-left: 2px;
+}
+.toggleChip {
+  padding: 3px 9px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.12s;
+  border: 0.5px solid var(--border-strong);
+  white-space: nowrap;
+}
+.toggleChipOn {
+  background: rgba(200,169,110,0.18);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.toggleChipBlocking {
+  background: rgba(194,90,74,0.15);
+  color: #c25a4a;
+  border-color: #c25a4a88;
+}
+.toggleChipOff {
+  background: transparent;
+  color: var(--text-muted);
+}
+.toggleChipOff:hover { background: var(--bg-raised); color: var(--text-secondary); }
+
+/* ── Overlay section ──────────────────────── */
+.overlaySection {
+  display: flex; flex-direction: column; gap: 6px;
+}
+.overlayOpacityRow {
+  display: flex; align-items: center; gap: 7px;
+  padding-left: 68px;
+}
+.overlayOpacityLabel {
+  font-size: 11px; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: 0.06em;
+  flex-shrink: 0;
+}
+.overlaySlider {
+  flex: 1; accent-color: var(--accent); cursor: pointer; height: 14px;
+}
+.overlayOpacityValue {
+  font-size: 11px; color: var(--text-secondary);
+  font-variant-numeric: tabular-nums; flex-shrink: 0; width: 30px;
+}
 
 /* ── Display background upload ──────────────────────────────── */
 .bgRow { display: flex; align-items: center; gap: 8px; margin-top: 4px; flex-wrap: wrap; }

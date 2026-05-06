@@ -246,11 +246,45 @@ export default function TileTypeManager() {
                 </label>
               </div>
 
-              <label className={styles.walkableLabel}>
-                <input type="checkbox" checked={!!draft.walkable} onChange={e => patchDraft('walkable', e.target.checked)} />
-                <span>Walkable</span>
-                <span className={styles.walkableHint}>Uncheck to block player movement</span>
-              </label>
+              <div className={styles.toggleRow}>
+                <span className={styles.toggleLabel}>Movement</span>
+                <button
+                  className={`${styles.toggleChip} ${draft.walkable ? styles.toggleChipOn : styles.toggleChipOff}`}
+                  onClick={() => patchDraft('walkable', true)}
+                >✓ Walkable</button>
+                <button
+                  className={`${styles.toggleChip} ${!draft.walkable ? styles.toggleChipBlocking : styles.toggleChipOff}`}
+                  onClick={() => patchDraft('walkable', false)}
+                >⛔ Blocked</button>
+              </div>
+
+              <div className={styles.overlaySection}>
+                <div className={styles.toggleRow}>
+                  <span className={styles.toggleLabel}>Overlay</span>
+                  <button
+                    className={`${styles.toggleChip} ${!draft.overlay ? styles.toggleChipOn : styles.toggleChipOff}`}
+                    onClick={() => patchDraft('overlay', false)}
+                  >Off</button>
+                  <button
+                    className={`${styles.toggleChip} ${draft.overlay ? styles.toggleChipOn : styles.toggleChipOff}`}
+                    onClick={() => patchDraft('overlay', true)}
+                  >On</button>
+                  <span className={styles.toggleHint}>fill color over bg images</span>
+                </div>
+                {draft.overlay && (
+                  <div className={styles.overlayOpacityRow}>
+                    <span className={styles.overlayOpacityLabel}>Opacity</span>
+                    <input
+                      type="range"
+                      min={0} max={1} step={0.05}
+                      value={draft.overlayOpacity ?? 0.5}
+                      className={styles.overlaySlider}
+                      onChange={e => patchDraft('overlayOpacity', parseFloat(e.target.value))}
+                    />
+                    <span className={styles.overlayOpacityValue}>{Math.round((draft.overlayOpacity ?? 0.5) * 100)}%</span>
+                  </div>
+                )}
+              </div>
 
               <label className={styles.fieldLabel}>Status effects (comma-separated)
                 <input
