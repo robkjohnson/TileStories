@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { useStore, getSystem } from '../../store/useStore'
+import { useStore, getSystem, getCampaignSystem } from '../../store/useStore'
 import { StatusPill } from '../EffectSystem/StatusLibrary'
 import { TOKEN_EMOJIS } from '../../utils/tokenEmojis'
 import styles from './CharacterSheet.module.css'
@@ -86,12 +86,15 @@ function DebouncedTextarea({ value, onUpdate, rows = 3, placeholder }) {
 }
 
 export default function CharacterSheet({ characterId, onClose, inline }) {
-  const { campaign, updateCharacter, deleteCharacter, removeStatusFromCharacter, restCharacter } = useStore()
+  const { campaign, updateCharacter, deleteCharacter, removeStatusFromCharacter, restCharacter, applyStatusToActor } = useStore()
   const character = campaign?.actors?.[characterId]
-  const system = getSystem(campaign?.gameSystemId)
+  const system = getCampaignSystem(campaign)
   const [tab, setTab] = useState('info')  // 'info' | 'abilities' | 'items' | 'files'
   const [traitsDraft, setTraitsDraft] = useState((character?.traits || []).join(', '))
   const [uploadError, setUploadError] = useState(null)
+  const [emojiPickerOpen, setEmojiPickerOpen] = useState(false)
+  const [typeDropOpen, setTypeDropOpen] = useState(false)
+  const [addingStatus, setAddingStatus] = useState(false)
 
   useEffect(() => {
     setTraitsDraft((character?.traits || []).join(', '))
@@ -102,6 +105,7 @@ export default function CharacterSheet({ characterId, onClose, inline }) {
 
   if (!character) return null
   const colors = tokenColor(character, system)
+  const currentTypeDef = system.actorTypes.find(t => t.id === character.actorType) || system.actorTypes[0] || {}
 
   function update(field, value) { updateCharacter(characterId, { [field]: value }) }
   function updateStat(stat, value) { updateCharacter(characterId, { stats: { ...character.stats, [stat]: value } }) }
@@ -177,20 +181,52 @@ export default function CharacterSheet({ characterId, onClose, inline }) {
 
           <div className={styles.headerInfo}>
             <DebouncedNameInput value={character.name} onUpdate={v => update('name', v)} />
-            <div className={styles.typeRow}>
-              {system.actorTypes.map(typeDef => {
-                const c = tokenColor({ actorType: typeDef.id }, system)
-                const active = character.actorType === typeDef.id
-                return (
-                  <button key={typeDef.id}
-                    className={`${styles.typeBtn} ${active ? styles.typeBtnActive : ''}`}
-                    style={active ? { borderColor: c.ring, color: c.ring } : {}}
-                    onClick={() => update('actorType', typeDef.id)}
-                    title={typeDef.label}>
-                    {typeDef.icon} {typeDef.short}
-                  </button>
-                )
-              })}
+            <div style={{ position: 'relative' }}>
+              <button
+                onClick={() => setTypeDropOpen(o => !o)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 5,
+                  padding: '4px 8px', borderRadius: 'var(--radius-sm)',
+                  border: `1px solid ${typeDropOpen ? 'var(--accent)' : 'var(--border-strong)'}`,
+                  background: typeDropOpen ? 'rgba(200,169,110,0.08)' : 'var(--bg-raised)',
+                  color: colors.ring, fontSize: 12, cursor: 'pointer', fontWeight: 500,
+                }}>
+                <span>{currentTypeDef.icon}</span>
+                <span>{currentTypeDef.label}</span>
+                <span style={{ fontSize: 9, color: 'var(--text-muted)', marginLeft: 2 }}>▼</span>
+              </button>
+              {typeDropOpen && (
+                <>
+                  <div style={{ position: 'fixed', inset: 0, zIndex: 99 }} onClick={() => setTypeDropOpen(false)} />
+                  <div style={{
+                    position: 'absolute', top: '100%', left: 0, marginTop: 3,
+                    background: 'var(--bg-overlay)', border: '1px solid var(--border-strong)',
+                    borderRadius: 'var(--radius-sm)', zIndex: 100, minWidth: 170,
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.3)', overflow: 'hidden',
+                  }}>
+                    {system.actorTypes.map(typeDef => {
+                      const tc = tokenColor({ actorType: typeDef.id }, system)
+                      const active = character.actorType === typeDef.id
+                      return (
+                        <button key={typeDef.id}
+                          onClick={() => { update('actorType', typeDef.id); setTypeDropOpen(false) }}
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: 8,
+                            width: '100%', padding: '7px 10px',
+                            background: active ? 'rgba(200,169,110,0.1)' : 'transparent',
+                            border: 'none', borderBottom: '0.5px solid var(--border)',
+                            color: active ? tc.ring : 'var(--text-secondary)',
+                            fontSize: 12, cursor: 'pointer', textAlign: 'left',
+                          }}>
+                          <span>{typeDef.icon}</span>
+                          <span style={{ flex: 1 }}>{typeDef.label}</span>
+                          {active && <span style={{ fontSize: 10, color: 'var(--accent)' }}>✓</span>}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </>
+              )}
             </div>
             <div style={{ display:'flex', gap:5, flexWrap:'wrap', marginTop:4 }}>
               <PillToggle
@@ -239,13 +275,45 @@ export default function CharacterSheet({ characterId, onClose, inline }) {
           {/* Emoji picker */}
           <div className={styles.section}>
             <div className={styles.sectionLabel}>Token icon <span className={styles.hint}>(shown on map when no portrait)</span></div>
-            <div className={styles.emojiRow}>
-              {TOKEN_EMOJIS.map(e => (
-                <button key={e}
-                  className={`${styles.emojiBtn} ${character.emoji === e ? styles.emojiBtnActive : ''}`}
-                  onClick={() => update('emoji', character.emoji === e ? null : e)}>{e}</button>
-              ))}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <button
+                onClick={() => setEmojiPickerOpen(o => !o)}
+                style={{
+                  fontSize: 22, width: 44, height: 44, borderRadius: 8,
+                  border: `1px solid ${emojiPickerOpen ? 'var(--accent)' : 'var(--border-strong)'}`,
+                  background: emojiPickerOpen ? 'rgba(200,169,110,0.08)' : 'var(--bg-overlay)',
+                  cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}
+                title="Change token icon"
+              >
+                {character.emoji || tokenDisplay(character, system)}
+              </button>
+              <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                {emojiPickerOpen ? 'Pick an icon, or click current to close' : 'Click to change icon'}
+              </span>
+              {character.emoji && (
+                <button onClick={() => { update('emoji', null); setEmojiPickerOpen(false) }}
+                  style={{ fontSize: 11, color: 'var(--text-muted)', cursor: 'pointer', background: 'none', border: 'none', padding: 0, marginLeft: 'auto' }}>
+                  Reset
+                </button>
+              )}
             </div>
+            {emojiPickerOpen && (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8, 1fr)', gap: 3, marginTop: 8, padding: 8, background: 'var(--bg-overlay)', borderRadius: 8, border: '1px solid var(--border-strong)' }}>
+                {TOKEN_EMOJIS.map(e => (
+                  <button key={e}
+                    onClick={() => { update('emoji', e); setEmojiPickerOpen(false) }}
+                    style={{
+                      fontSize: 18, padding: 5, lineHeight: 1,
+                      border: character.emoji === e ? '1px solid var(--accent)' : '1px solid transparent',
+                      borderRadius: 5, background: character.emoji === e ? 'rgba(200,169,110,0.2)' : 'transparent',
+                      cursor: 'pointer',
+                    }}
+                    title={e}
+                  >{e}</button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Stats */}
@@ -328,16 +396,32 @@ export default function CharacterSheet({ characterId, onClose, inline }) {
 
           {/* Active Statuses */}
           <div className={styles.section}>
-            <div className={styles.sectionLabel}>Active Statuses</div>
-            {(character.activeStatuses || []).length === 0
-              ? <div className={styles.hint}>No active statuses.</div>
-              : <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                  {(character.activeStatuses || []).map(entry => (
-                    <StatusPill key={entry.statusId} statusId={entry.statusId} campaign={campaign} entry={entry}
-                      onRemove={() => removeStatusFromCharacter(characterId, entry.statusId)} />
-                  ))}
-                </div>
-            }
+            <div style={{ display: 'flex', alignItems: 'center', marginBottom: 6 }}>
+              <div className={styles.sectionLabel} style={{ margin: 0 }}>Active Statuses</div>
+              {!addingStatus && (
+                <button
+                  onClick={() => setAddingStatus(true)}
+                  style={{ marginLeft: 'auto', fontSize: 11, padding: '2px 8px', borderRadius: 4, border: '0.5px solid var(--border-strong)', background: 'var(--bg-overlay)', color: 'var(--text-muted)', cursor: 'pointer' }}
+                >+ Add</button>
+              )}
+            </div>
+            {addingStatus ? (
+              <AddStatusPicker
+                campaign={campaign}
+                character={character}
+                onApply={sid => { applyStatusToActor(characterId, sid); setAddingStatus(false) }}
+                onCancel={() => setAddingStatus(false)}
+              />
+            ) : (
+              (character.activeStatuses || []).length === 0
+                ? <div className={styles.hint}>No active statuses.</div>
+                : <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                    {(character.activeStatuses || []).map(entry => (
+                      <StatusPill key={entry.statusId} statusId={entry.statusId} campaign={campaign} entry={entry}
+                        onRemove={() => removeStatusFromCharacter(characterId, entry.statusId)} />
+                    ))}
+                  </div>
+            )}
           </div>
 
           {/* Damage defenses */}
@@ -494,6 +578,49 @@ function StatField({ label, value, max, onChange, onMaxChange, showMax }) {
             onChange={e => onMaxChange(parseInt(e.target.value) || 0)} />
         </>}
       </div>
+    </div>
+  )
+}
+
+// ── Status picker — add a status to an actor ─────────────────
+function AddStatusPicker({ campaign, character, onApply, onCancel }) {
+  const [search, setSearch] = useState('')
+  const activeIds = new Set((character.activeStatuses || []).map(s => s.statusId))
+  const candidates = Object.values(campaign?.statuses || {})
+    .filter(s => (s.eligibleTargets === 'characters' || !s.eligibleTargets) && !activeIds.has(s.id))
+    .filter(s => !search || s.name.toLowerCase().includes(search.toLowerCase()))
+    .sort((a, b) => a.name.localeCompare(b.name))
+
+  return (
+    <div>
+      <input autoFocus type="text" placeholder="Search statuses…" value={search}
+        onChange={e => setSearch(e.target.value)}
+        style={{ width: '100%', marginBottom: 6, padding: '5px 8px', borderRadius: 4, border: '0.5px solid var(--border-strong)', background: 'var(--bg-overlay)', color: 'var(--text-primary)', fontSize: 12, outline: 'none', boxSizing: 'border-box' }}
+      />
+      <div style={{ maxHeight: 160, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 2 }}>
+        {candidates.length === 0 && (
+          <div style={{ fontSize: 11, color: 'var(--text-muted)', padding: '6px 0' }}>
+            {Object.keys(campaign?.statuses || {}).length === 0 ? 'No statuses defined yet — create them in the Library tab.' : 'No matching statuses available.'}
+          </div>
+        )}
+        {candidates.map(s => (
+          <button key={s.id} onClick={() => onApply(s.id)} style={{
+            display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px',
+            borderRadius: 4, border: '0.5px solid var(--border)', background: 'var(--bg-raised)',
+            color: 'var(--text-secondary)', fontSize: 12, cursor: 'pointer', textAlign: 'left',
+          }}>
+            <span style={{ fontSize: 16, flexShrink: 0 }}>{s.icon || '✨'}</span>
+            <span style={{ flex: 1 }}>{s.name}</span>
+            {s.duration
+              ? <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>{s.duration.rounds}R</span>
+              : <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>∞</span>}
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: s.color, flexShrink: 0 }} />
+          </button>
+        ))}
+      </div>
+      <button onClick={onCancel} style={{ fontSize: 11, color: 'var(--text-muted)', cursor: 'pointer', background: 'none', border: 'none', padding: '4px 0', marginTop: 4 }}>
+        Cancel
+      </button>
     </div>
   )
 }

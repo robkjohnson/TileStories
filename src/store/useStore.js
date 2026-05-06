@@ -66,7 +66,7 @@ export { makeEvent, makeStep,
          VISIBILITY_OPTIONS }                  from '../models/event.js'
 export { makeStoryboard, makeStoryEntry }      from '../models/storyboard.js'
 export { makeCampaign }                        from '../models/campaign.js'
-export { DND5E, GENERIC, SYSTEMS, getSystem }  from '../systems/index.js'
+export { DND5E, GENERIC, SYSTEMS, getSystem, getCampaignSystem }  from '../systems/index.js'
 
 // ── Backward-compat factory wrappers ──────────────────────────────
 // The old makeCharacter/makeCreature took a single `overrides` object.

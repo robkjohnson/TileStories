@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { useStore, makeAction, getSystem } from '../../store/useStore'
+import { useStore, makeAction, getCampaignSystem } from '../../store/useStore'
 import { useDebouncedField } from '../../utils/useDebouncedStore'
 import { isValidDiceExpr } from '../../utils/dice'
 import AoePatternEditor from './AoePatternEditor'
@@ -122,7 +122,7 @@ function EffectEditor({ effect, campaign, deleteConfirm, onDelete, onCancelDelet
   }
 
   const statuses = Object.values(campaign?.statuses || {})
-  const system = getSystem(campaign?.gameSystemId)
+  const system = getCampaignSystem(campaign)
 
   return (
     <div className={styles.editor}>

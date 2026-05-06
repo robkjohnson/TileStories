@@ -11,14 +11,14 @@
  */
 import { makeActor }          from '../../models/actor.js'
 import { makeTile }           from '../../models/map.js'
-import { getSystem }          from '../../systems/index.js'
+import { getSystem, getCampaignSystem } from '../../systems/index.js'
 
 export const createActorSlice = (set, get) => ({
 
   // ── Actor CRUD ────────────────────────────────────────────────
   addActor(data = {}) {
     const { campaign } = get()
-    const sys = getSystem(campaign?.gameSystemId)
+    const sys = getCampaignSystem(campaign)
     const actor = makeActor(sys, data.actorType || 'npc', data)
     set(s => ({
       campaign: {

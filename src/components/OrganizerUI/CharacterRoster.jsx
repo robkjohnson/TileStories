@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { useStore, getSystem } from '../../store/useStore'
+import { useStore, getCampaignSystem } from '../../store/useStore'
 import { tokenColor, tokenDisplay } from '../CharacterSheet/CharacterSheet'
 import { StatusPill } from '../EffectSystem/StatusLibrary'
 import { rollDice } from '../../utils/dice'
@@ -7,7 +7,7 @@ import styles from './Sidebar.module.css'
 
 export default function CharacterRoster({ onOpenEntity }) {
   const { campaign, addActor, deleteActor, updateActor } = useStore()
-  const system = getSystem(campaign?.gameSystemId)
+  const system = getCampaignSystem(campaign)
 
   // Derive three groups from the system definition:
   //   players   — isPlayer: true

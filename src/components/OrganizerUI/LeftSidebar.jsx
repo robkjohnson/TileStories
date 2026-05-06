@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react'
-import { useStore, getSystem, SYSTEMS } from '../../store/useStore'
+import { useStore, getSystem, getCampaignSystem, GENERIC, SYSTEMS, newId } from '../../store/useStore'
 import { listCampaigns, loadCampaign, saveCampaign, exportCampaign, importCampaign } from '../../utils/storage'
 import { useDebouncedField } from '../../utils/useDebouncedStore'
 import AbilityLibrary from '../AbilitySystem/AbilityLibrary'
@@ -98,6 +98,9 @@ function CampaignTab() {
       </div>
 
       <GameSystemSection campaign={campaign} updateCampaign={updateCampaign} />
+      {campaign.gameSystemId === 'generic' && (
+        <CustomGameRulesSection campaign={campaign} updateCampaign={updateCampaign} />
+      )}
       <CoverImageEditor />
 
       <div className={styles.section}>
@@ -151,7 +154,7 @@ function CoverImageEditor() {
 // ── Game system section ───────────────────────────────────────
 function GameSystemSection({ campaign, updateCampaign }) {
   const [open, setOpen] = useState(false)
-  const system = getSystem(campaign?.gameSystemId)
+  const system = getCampaignSystem(campaign)
 
   return (
     <div className={styles.section}>
@@ -191,6 +194,155 @@ function GameSystemSection({ campaign, updateCampaign }) {
           ))}
         </div>
       )}
+    </div>
+  )
+}
+
+// ── Custom game rules (Generic system only) ───────────────────
+function CustomGameRulesSection({ campaign, updateCampaign }) {
+  const [newDmgType, setNewDmgType] = useState('')
+
+  const actorTypes  = campaign.customActorTypes  ?? GENERIC.actorTypes
+  const damageTypes = campaign.customDamageTypes ?? GENERIC.damageTypes
+
+  const actorCounts = Object.values(campaign.actors || {}).reduce((acc, a) => {
+    acc[a.actorType] = (acc[a.actorType] || 0) + 1
+    return acc
+  }, {})
+
+  function updateActorType(id, patch) {
+    updateCampaign({ customActorTypes: actorTypes.map(t => t.id === id ? { ...t, ...patch } : t) })
+  }
+  function addActorType() {
+    const t = { id: newId(), label: 'New Type', short: 'NEW', isPlayer: false, icon: '👤', showInRoster: true }
+    updateCampaign({ customActorTypes: [...actorTypes, t] })
+  }
+  function removeActorType(id) {
+    updateCampaign({ customActorTypes: actorTypes.filter(t => t.id !== id) })
+  }
+
+  function addDamageType() {
+    const key = newDmgType.trim().toLowerCase().replace(/\s+/g, '_')
+    if (!key || damageTypes.includes(key)) return
+    updateCampaign({ customDamageTypes: [...damageTypes, key] })
+    setNewDmgType('')
+  }
+  function removeDamageType(key) {
+    updateCampaign({ customDamageTypes: damageTypes.filter(t => t !== key) })
+  }
+
+  const subLabel = { fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 5, marginTop: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }
+  const resetBtn = { background: 'none', border: 'none', cursor: 'pointer', fontSize: 10, color: 'var(--text-muted)', padding: 0 }
+  const rowStyle = { display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }
+  const checkLabel = { display: 'flex', alignItems: 'center', gap: 2, fontSize: 10, color: 'var(--text-muted)', cursor: 'pointer', whiteSpace: 'nowrap' }
+  const checkBox = { accentColor: 'var(--accent)', width: 11, height: 11 }
+
+  return (
+    <div className={styles.section}>
+      <div className={styles.sectionLabel}>Custom Game Rules</div>
+
+      {/* Actor Types */}
+      <div style={subLabel}>
+        <span>Actor Types</span>
+        {campaign.customActorTypes !== null && (
+          <button style={resetBtn} onClick={() => updateCampaign({ customActorTypes: null })} title="Reset to Generic defaults">
+            Reset
+          </button>
+        )}
+      </div>
+
+      {actorTypes.map(t => {
+        const count = actorCounts[t.id] || 0
+        return (
+          <div key={t.id} style={rowStyle}>
+            <input
+              value={t.icon}
+              onChange={e => updateActorType(t.id, { icon: e.target.value })}
+              style={{ width: 30, textAlign: 'center', fontSize: 14, padding: '2px 3px', flexShrink: 0 }}
+              title="Icon emoji"
+              maxLength={2}
+            />
+            <input
+              value={t.label}
+              onChange={e => {
+                const label = e.target.value
+                updateActorType(t.id, { label, short: label.slice(0, 4).toUpperCase() })
+              }}
+              style={{ flex: 1, fontSize: 11, minWidth: 0 }}
+              placeholder="Type name"
+            />
+            <label style={checkLabel} title="Player character type">
+              <input type="checkbox" checked={!!t.isPlayer} onChange={e => updateActorType(t.id, { isPlayer: e.target.checked })} style={checkBox} />
+              PC
+            </label>
+            <label style={checkLabel} title="Show in roster">
+              <input type="checkbox" checked={!!t.showInRoster} onChange={e => updateActorType(t.id, { showInRoster: e.target.checked })} style={checkBox} />
+              Roster
+            </label>
+            {count > 0 && (
+              <span style={{ fontSize: 10, color: 'var(--text-muted)', minWidth: 16, textAlign: 'right' }} title={`${count} actor(s) use this type`}>
+                {count}
+              </span>
+            )}
+            <button
+              onClick={() => count === 0 && removeActorType(t.id)}
+              disabled={count > 0}
+              title={count > 0 ? `${count} actor(s) use this type — reassign first` : 'Remove type'}
+              style={{ background: 'none', border: 'none', cursor: count > 0 ? 'not-allowed' : 'pointer', color: 'var(--text-muted)', fontSize: 15, opacity: count > 0 ? 0.3 : 0.7, padding: '0 2px', lineHeight: 1, flexShrink: 0 }}
+            >×</button>
+          </div>
+        )
+      })}
+
+      <button className={styles.addEntryBtn} onClick={addActorType} style={{ fontSize: 11, padding: '4px 8px' }}>
+        + Add actor type
+      </button>
+
+      {/* Damage Types */}
+      <div style={{ ...subLabel, marginTop: 14 }}>
+        <span>Damage Types</span>
+        {campaign.customDamageTypes !== null && (
+          <button style={resetBtn} onClick={() => updateCampaign({ customDamageTypes: null })} title="Reset to Generic defaults">
+            Reset
+          </button>
+        )}
+      </div>
+
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 7 }}>
+        {damageTypes.map(key => (
+          <span key={key} style={{
+            display: 'inline-flex', alignItems: 'center', gap: 3,
+            padding: '2px 7px', borderRadius: 10,
+            fontSize: 10, fontWeight: 500,
+            background: 'var(--bg-raised)', border: '0.5px solid var(--border)',
+            color: 'var(--text-secondary)',
+          }}>
+            {key}
+            {key !== 'none' && (
+              <button
+                onClick={() => removeDamageType(key)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 12, padding: 0, lineHeight: 1 }}
+                title={`Remove "${key}"`}
+              >×</button>
+            )}
+          </span>
+        ))}
+      </div>
+
+      <div style={{ display: 'flex', gap: 5 }}>
+        <input
+          value={newDmgType}
+          onChange={e => setNewDmgType(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && addDamageType()}
+          placeholder="New damage type…"
+          style={{ flex: 1, fontSize: 11 }}
+        />
+        <button
+          onClick={addDamageType}
+          disabled={!newDmgType.trim()}
+          style={{ fontSize: 11, padding: '3px 8px', background: 'var(--bg-raised)', border: '0.5px solid var(--border)', borderRadius: 'var(--radius-sm)', color: 'var(--text-secondary)', cursor: newDmgType.trim() ? 'pointer' : 'not-allowed', opacity: newDmgType.trim() ? 1 : 0.5 }}
+        >Add</button>
+      </div>
     </div>
   )
 }

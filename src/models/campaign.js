@@ -28,8 +28,13 @@ export function makeCampaign(gameSystemId = 'dnd5e', overrides = {}) {
 
     // ── Game system ───────────────────────────────────────────────
     // Stores the system ID. The full definition is resolved at runtime
-    // via getSystem(campaign.gameSystemId).
+    // via getCampaignSystem(campaign).
     gameSystemId,
+
+    // ── Custom game rules (Generic system only) ───────────────────
+    // null = use system defaults. Set when organizer edits via Custom Game Rules UI.
+    customActorTypes:  null,
+    customDamageTypes: null,
 
     // ── Campaign settings ─────────────────────────────────────────
     settings: {

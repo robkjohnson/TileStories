@@ -5,7 +5,7 @@
 import { makeStatus, makeEffect, rotateAoePattern } from '../../models/effect.js'
 import { makeTile }                                  from '../../models/map.js'
 import { rollDiceExpr }                              from '../../utils/dice.js'
-import { getSystem }                                 from '../../systems/index.js'
+import { getSystem, getCampaignSystem }               from '../../systems/index.js'
 
 // Returns the save roll bonus for a given stat on an actor.
 // For 'attribute'-type stats (D&D ability scores) converts the raw score to a modifier.
@@ -234,7 +234,7 @@ export const createEffectSlice = (set, get) => ({
     const now = new Date().toISOString()
     const isSquare = activeMap?.tileStyle === 'square'
     const results = []
-    const system = getSystem(campaign.gameSystemId)
+    const system = getCampaignSystem(campaign)
 
     // Resolve affected tiles
     let affectedTiles = []

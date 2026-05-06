@@ -23,6 +23,20 @@ export function getSystem(id) {
 }
 
 /**
+ * Like getSystem, but for the Generic system merges any per-campaign
+ * customActorTypes / customDamageTypes overrides set by the organizer.
+ * All other systems are returned as-is.
+ */
+export function getCampaignSystem(campaign) {
+  const base = getSystem(campaign?.gameSystemId)
+  if (base.id !== 'generic') return base
+  const actorTypes  = campaign?.customActorTypes  ?? base.actorTypes
+  const damageTypes = campaign?.customDamageTypes ?? base.damageTypes
+  if (actorTypes === base.actorTypes && damageTypes === base.damageTypes) return base
+  return { ...base, actorTypes, damageTypes }
+}
+
+/**
  * Build a default stats object for an actor based on the given system.
  * Every stat defined in gameSystem.stats gets its `default` value.
  * Falls back to D&D 5e if the system is unresolvable.
