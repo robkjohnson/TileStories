@@ -3,14 +3,13 @@ import { useStore, ITEM_CATEGORIES } from '../../store/useStore'
 import { ItemCard } from './ItemLibrary'
 import styles from './InventoryPanel.module.css'
 
-// entityType: 'characters' | 'creatures'
-export default function InventoryPanel({ entityType, entityId }) {
+export default function InventoryPanel({ entityId }) {
   const { campaign, giveItem, removeItemFromEntity, updateItemInstance } = useStore()
   const [showPicker, setShowPicker] = useState(false)
   const [search, setSearch] = useState('')
   const [editingId, setEditingId] = useState(null)
 
-  const entity = campaign?.[entityType]?.[entityId]
+  const entity = campaign?.actors?.[entityId]
   const allTemplates = campaign?.items || {}
   const inventory = entity?.inventory || []
 
@@ -48,23 +47,23 @@ export default function InventoryPanel({ entityType, entityId }) {
                     {isEditing ? 'Done' : '✏️'}
                   </button>
                   <button className={styles.removeBtn}
-                    onClick={() => removeItemFromEntity(entityType, entityId, instance.id)}>×</button>
+                    onClick={() => removeItemFromEntity(null, entityId, instance.id)}>×</button>
                 </div>
                 {isEditing && (
                   <div className={styles.editPanel}>
                     <div className={styles.editRow}>
                       <label>Qty</label>
                       <input type="number" min={1} value={instance.quantity}
-                        onChange={e => updateItemInstance(entityType, entityId, instance.id, { quantity: parseInt(e.target.value) || 1 })} />
+                        onChange={e => updateItemInstance(entityId, instance.id, { quantity: parseInt(e.target.value) || 1 })} />
                     </div>
                     <div className={styles.editRow}>
                       <label>Notes</label>
                       <input type="text" value={instance.notes || ''} placeholder="Cracked, cursed, glowing…"
-                        onChange={e => updateItemInstance(entityType, entityId, instance.id, { notes: e.target.value })} />
+                        onChange={e => updateItemInstance(entityId, instance.id, { notes: e.target.value })} />
                     </div>
                     <label className={styles.identCheck}>
                       <input type="checkbox" checked={instance.identified !== false}
-                        onChange={e => updateItemInstance(entityType, entityId, instance.id, { identified: e.target.checked })} />
+                        onChange={e => updateItemInstance(entityId, instance.id, { identified: e.target.checked })} />
                       Identified (players can see the real name)
                     </label>
                   </div>
@@ -96,7 +95,7 @@ export default function InventoryPanel({ entityType, entityId }) {
                   const cat = ITEM_CATEGORIES[tmpl.category] || ITEM_CATEGORIES.misc
                   return (
                     <button key={tmpl.id} className={styles.pickerItem}
-                      onClick={() => { giveItem(entityType, entityId, tmpl.id); setSearch('') }}>
+                      onClick={() => { giveItem(entityId, tmpl.id); setSearch('') }}>
                       <span>{cat.icon}</span>
                       <div className={styles.pickerInfo}>
                         <span className={styles.pickerName}>{tmpl.name}</span>

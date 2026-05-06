@@ -370,7 +370,7 @@ function EffectStepEditor({ step, effects, campaign, activeMapId, onChange }) {
     else onChange({ selectedChars: [...chars, charId] })
   }
 
-  const allChars = Object.values(campaign?.characters || {})
+  const allChars = Object.values(campaign?.actors || {})
     .filter(c => !c.hidden)
     .sort((a, b) => a.name.localeCompare(b.name))
 

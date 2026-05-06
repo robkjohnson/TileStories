@@ -25,7 +25,7 @@ const CHAR_STATS = [
 ]
 
 // ── Exported StatusPill — used across the app ─────────────────
-export function StatusPill({ statusId, campaign, onRemove }) {
+export function StatusPill({ statusId, campaign, onRemove, entry }) {
   const status = campaign?.statuses?.[statusId]
   if (!status) return null
   return (
@@ -36,6 +36,9 @@ export function StatusPill({ statusId, campaign, onRemove }) {
     }}>
       {status.icon && <span className={styles.pillIcon}>{status.icon}</span>}
       {status.name}
+      {entry?.remainingRounds != null && (
+        <span style={{ fontSize: 9, opacity: 0.65, marginLeft: 3 }}>{entry.remainingRounds}R</span>
+      )}
       {onRemove && (
         <button className={styles.pillRemove} onClick={e => { e.stopPropagation(); onRemove() }} title="Remove status">×</button>
       )}
@@ -91,6 +94,7 @@ export default function StatusLibrary() {
               <span className={styles.cardMeta}>
                 {s.eligibleTargets === 'tiles' ? 'Tiles' : 'Characters'}
                 {s.modifiers?.length > 0 && ` · ${s.modifiers.length} modifier${s.modifiers.length !== 1 ? 's' : ''}`}
+                {s.duration ? ` · ${s.duration.rounds}R ${s.duration.expireOn === 'start' ? 'start' : 'end'}` : ' · Permanent'}
                 {s.negatingTraits?.length > 0 && ` · Negated by: ${s.negatingTraits.join(', ')}`}
               </span>
             </div>
@@ -245,6 +249,40 @@ function StatusEditor({ status, campaign, deleteConfirm, onDelete, onCancelDelet
           ))}
         </div>
       </div>
+
+      {/* ── Duration (characters only) ──────────────────────────── */}
+      {eligibleTargets === 'characters' && (
+        <div className={styles.editorField}>
+          <label>Duration</label>
+          <div className={styles.targetRow}>
+            <button
+              className={`${styles.targetBtn} ${!status.duration ? styles.targetBtnActive : ''}`}
+              onClick={() => updateStatus(status.id, { duration: null })}
+            >Permanent</button>
+            <button
+              className={`${styles.targetBtn} ${status.duration ? styles.targetBtnActive : ''}`}
+              onClick={() => !status.duration && updateStatus(status.id, { duration: { rounds: 1, expireOn: 'end' } })}
+            >Limited</button>
+          </div>
+          {status.duration && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6, flexWrap: 'wrap' }}>
+              <input
+                type="number" min={1} max={99}
+                value={status.duration.rounds}
+                onChange={e => updateStatus(status.id, { duration: { ...status.duration, rounds: Math.max(1, parseInt(e.target.value) || 1) } })}
+                style={{ width: 52 }}
+              />
+              <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>rounds, expire on</span>
+              {[['start', 'Start of turn'], ['end', 'End of turn']].map(([val, lbl]) => (
+                <button key={val}
+                  className={`${styles.targetBtn} ${status.duration.expireOn === val ? styles.targetBtnActive : ''}`}
+                  onClick={() => updateStatus(status.id, { duration: { ...status.duration, expireOn: val } })}
+                >{lbl}</button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ── Modifiers ───────────────────────────────────────────── */}
       <div className={styles.editorField}>

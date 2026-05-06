@@ -1,10 +1,11 @@
-import React, { useState, useRef } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { useStore } from '../../store/useStore'
 import { useSessionStore } from '../../store/useSessionStore'
+import { tokenColor } from '../CharacterSheet/CharacterSheet'
 import styles from './TurnTracker.module.css'
 
 export default function TurnTracker() {
-  const { campaign } = useStore()
+  const { campaign, tickStatusDurations } = useStore()
   const { session } = useSessionStore()
   const [adding, setAdding] = useState(false)
   const [addFilter, setAddFilter] = useState('all')
@@ -22,14 +23,24 @@ export default function TurnTracker() {
   const turnMode = session.turnMode || 'organizer'
   const current = turnOrder[currentIdx]
 
-  // All characters + creatures available to add
-  const allChars = Object.values(campaign?.characters || {})
-  const allCreatures = Object.values(campaign?.creatures || {})
+  // Tick status durations whenever the active turn advances
+  const prevIdxRef = useRef(null)
+  useEffect(() => {
+    if (turnMode !== 'turn' || turnOrder.length === 0) return
+    if (prevIdxRef.current === null) { prevIdxRef.current = currentIdx; return }
+    if (prevIdxRef.current === currentIdx) return
+    const prevActor = turnOrder[prevIdxRef.current]
+    const nextActor = turnOrder[currentIdx]
+    if (prevActor?.id) tickStatusDurations(prevActor.id, 'end')
+    if (nextActor?.id) tickStatusDurations(nextActor.id, 'start')
+    prevIdxRef.current = currentIdx
+  }, [currentIdx, turnMode])
+
+  const CREATURE_TYPES = new Set(['pet','mount','companion','wild','enemy'])
   const inTurn = new Set(turnOrder.map(t => t.id))
-  const available = [
-    ...allChars.map(c => ({ id: c.id, name: c.name, type: c.type, emoji: c.emoji, entityKind: 'character' })),
-    ...allCreatures.map(c => ({ id: c.id, name: c.name, type: c.type, emoji: c.emoji || '🐾', entityKind: 'creature' })),
-  ].filter(e => !inTurn.has(e.id))
+  const available = Object.values(campaign?.actors || {})
+    .filter(a => !inTurn.has(a.id))
+    .map(a => ({ id: a.id, name: a.name, actorType: a.actorType, emoji: a.emoji || (CREATURE_TYPES.has(a.actorType) ? '🐾' : null) }))
 
   function setMode(mode) { send({ type: 'SET_TURN_MODE', mode }) }
   function next() { send({ type: 'NEXT_TURN' }) }
@@ -40,9 +51,8 @@ export default function TurnTracker() {
     const entry = {
       id: entity.id,
       name: entity.name,
-      type: entity.type,
+      actorType: entity.actorType,
       emoji: entity.emoji,
-      entityKind: entity.entityKind,
       initiative: 0,
     }
     send({ type: 'SET_TURN_ORDER', turnOrder: [...turnOrder, entry] })
@@ -65,7 +75,7 @@ export default function TurnTracker() {
     dragOver.current = null
   }
 
-  const RING = { player:'#5b9bd5', npc:'#7bc47f', monster:'#c25a4a', pet:'#7bc47f', wild:'#9a9790', enemy:'#c25a4a', companion:'#5b9bd5', mount:'#c8a96e' }
+  const ring = (actorType) => tokenColor({ actorType }).ring
 
   return (
     <div className={styles.tracker}>
@@ -90,7 +100,7 @@ export default function TurnTracker() {
         {turnMode === 'party'     && 'All players act simultaneously'}
         {turnMode === 'turn'      && turnOrder.length === 0 && 'No tokens in turn order yet'}
         {turnMode === 'turn'      && turnOrder.length > 0 && current && (
-          <span>Current: <strong style={{ color: RING[current.type] || '#c8a96e' }}>{current.name}</strong></span>
+          <span>Current: <strong style={{ color: ring(current.actorType) }}>{current.name}</strong></span>
         )}
       </div>
 
@@ -106,25 +116,25 @@ export default function TurnTracker() {
       {turnOrder.length > 0 && (
         <div className={styles.orderList}>
           {turnOrder.map((entry, idx) => {
-            const ring = RING[entry.type] || '#9a9790'
+            const entryRing = ring(entry.actorType)
             const isActive = turnMode === 'turn' && idx === currentIdx
             return (
               <div key={entry.id}
                 className={`${styles.orderItem} ${isActive ? styles.orderItemActive : ''}`}
-                style={{ borderLeftColor: ring }}
+                style={{ borderLeftColor: entryRing }}
                 draggable
                 onDragStart={e => onDragStart(e, idx)}
                 onDragEnter={() => onDragEnter(idx)}
                 onDragEnd={onDragEnd}
                 onDragOver={e => e.preventDefault()}>
                 <span className={styles.dragHandle}>⠿</span>
-                <div className={styles.orderAvatar} style={{ background: ring + '22', borderColor: ring }}>
+                <div className={styles.orderAvatar} style={{ background: entryRing + '22', borderColor: entryRing }}>
                   <span>{entry.emoji || '👤'}</span>
                 </div>
                 <div className={styles.orderInfo}>
                   <span className={styles.orderName}>{entry.name}</span>
-                  <span className={styles.orderType} style={{ color: ring }}>
-                    {isActive ? '← active' : entry.type}
+                  <span className={styles.orderType} style={{ color: entryRing }}>
+                    {isActive ? '← active' : entry.actorType}
                   </span>
                 </div>
                 {isActive && <span className={styles.activeCrown}>👑</span>}
@@ -174,7 +184,7 @@ export default function TurnTracker() {
               const term = addSearch.trim().toLowerCase()
               const filtered = available.filter(e => {
                 const matchesType = addFilter === 'all'
-                  || (addFilter === 'creature' ? e.entityKind === 'creature' : e.type === addFilter)
+                  || (addFilter === 'creature' ? CREATURE_TYPES.has(e.actorType) : e.actorType === addFilter)
                 const matchesSearch = !term || e.name.toLowerCase().includes(term)
                 return matchesType && matchesSearch
               })
@@ -184,11 +194,11 @@ export default function TurnTracker() {
                 return <div className={styles.empty}>No matches</div>
               return filtered.map(entity => (
                 <button key={entity.id} className={styles.addItem}
-                  style={{ borderLeftColor: RING[entity.type] || '#9a9790' }}
+                  style={{ borderLeftColor: ring(entity.actorType) }}
                   onClick={() => addToTurn(entity)}>
                   <span>{entity.emoji || '👤'}</span>
                   <span className={styles.addItemName}>{entity.name}</span>
-                  <span className={styles.addItemType} style={{ color: RING[entity.type] || '#9a9790' }}>{entity.type}</span>
+                  <span className={styles.addItemType} style={{ color: ring(entity.actorType) }}>{entity.actorType}</span>
                 </button>
               ))
             })()}

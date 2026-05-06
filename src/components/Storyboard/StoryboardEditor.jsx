@@ -253,10 +253,10 @@ function StoryboardCanvas({ storyboard: sb, onUpdate, onClose, onBroadcast }) {
 
   const { campaign } = useStore()
   const [charFilter, setCharFilter] = useState('all')
-  const allPortraitChars = Object.values(campaign?.characters || {}).filter(c => c.portrait)
+  const allPortraitChars = Object.values(campaign?.actors || {}).filter(c => c.portrait)
   const characters = charFilter === 'all'
     ? allPortraitChars
-    : allPortraitChars.filter(c => c.type === charFilter)
+    : allPortraitChars.filter(c => c.actorType === charFilter)
 
   return (
     <div className={styles.editor}>

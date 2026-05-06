@@ -33,26 +33,25 @@ function DebouncedNameInput({ value, onUpdate }) {
 export default function CreatureSheet({ creatureId, onClose, inline }) {
   const { campaign, updateCreature, deleteCreature } = useStore()
   const [deleteConfirm, setDeleteConfirm] = React.useState(false)
-  const creature = campaign?.creatures?.[creatureId]
+  const creature = campaign?.actors?.[creatureId]
   const [tab, setTab] = useState('stats')
   const portraitRef = useRef(null)
 
   if (!creature) return null
 
-  const typeInfo = TYPES.find(t => t.id === creature.type) || TYPES[3]
+  const typeInfo = TYPES.find(t => t.id === creature.actorType) || TYPES[3]
 
   function update(field, value) { updateCreature(creatureId, { [field]: value }) }
-  function updateStat(key, value) { updateCreature(creatureId, { statBlock: { ...creature.statBlock, [key]: value } }) }
+  function updateStat(key, value) { updateCreature(creatureId, { stats: { ...creature.stats, [key]: value } }) }
 
-  // Changing type: owned types keep/prompt owner, wild/enemy clears it
+  // Changing actorType: owned types keep/prompt owner, wild/enemy clears it
   function handleTypeChange(newType) {
     const ownedTypes = ['pet', 'mount', 'companion']
     if (ownedTypes.includes(newType)) {
-      update('type', newType)
-      // Don't clear existing owner when switching between owned types
+      update('actorType', newType)
     } else {
       // Wild / Enemy — clear ownership
-      updateCreature(creatureId, { type: newType, ownedBy: null })
+      updateCreature(creatureId, { actorType: newType, ownedBy: null })
     }
   }
 
@@ -68,9 +67,9 @@ export default function CreatureSheet({ creatureId, onClose, inline }) {
     e.target.value = ''
   }
 
-  const sb = creature.statBlock || {}
-  const characters = Object.values(campaign?.characters || {})
-  const owner = creature.ownedBy ? campaign?.characters?.[creature.ownedBy] : null
+  const sb = creature.stats || {}
+  const characters = Object.values(campaign?.actors || {}).filter(a => ['player', 'npc', 'monster'].includes(a.actorType))
+  const owner = creature.ownedBy ? campaign?.actors?.[creature.ownedBy] : null
 
   const sheetEl = (
       <div className={styles.sheet} style={inline ? { maxHeight:'100%', boxShadow:'none', border:'none', borderRadius:0, width:'100%', overflow:'auto' } : {}}>
@@ -94,8 +93,8 @@ export default function CreatureSheet({ creatureId, onClose, inline }) {
             <div className={styles.typeRow}>
               {TYPES.map(t => (
                 <button key={t.id}
-                  className={`${styles.typeBtn} ${creature.type === t.id ? styles.typeBtnActive : ''}`}
-                  style={creature.type === t.id ? { borderColor: t.color, color: t.color } : {}}
+                  className={`${styles.typeBtn} ${creature.actorType === t.id ? styles.typeBtnActive : ''}`}
+                  style={creature.actorType === t.id ? { borderColor: t.color, color: t.color } : {}}
                   onClick={() => handleTypeChange(t.id)}>{t.label}</button>
               ))}
             </div>
@@ -177,7 +176,7 @@ export default function CreatureSheet({ creatureId, onClose, inline }) {
             {/* Ownership — only for pet/mount/companion */}
             <div className={styles.sectionLabel}>Status</div>
             <div className={styles.statusSection}>
-              {['pet','mount','companion'].includes(creature.type) ? (
+              {['pet','mount','companion'].includes(creature.actorType) ? (
                 <>
                   <div className={styles.statusLabel}>
                     <span style={{ color: typeInfo.color }}>●</span>
@@ -190,7 +189,7 @@ export default function CreatureSheet({ creatureId, onClose, inline }) {
                   >
                     <option value="">— Unassigned (party asset) —</option>
                     {characters.map(c => (
-                      <option key={c.id} value={c.id}>{c.name} ({c.type})</option>
+                      <option key={c.id} value={c.id}>{c.name} ({c.actorType})</option>
                     ))}
                   </select>
                   {owner
@@ -204,7 +203,7 @@ export default function CreatureSheet({ creatureId, onClose, inline }) {
                         </button>
                       </div>
                     : <div className={styles.ownerBadge}>
-                        No owner assigned — unassigned {creature.type}s are party assets
+                        No owner assigned — unassigned {creature.actorType}s are party assets
                       </div>
                   }
                 </>
@@ -249,7 +248,7 @@ export default function CreatureSheet({ creatureId, onClose, inline }) {
         {/* ── Abilities tab ── */}
         {tab === 'abilities' && (
           <div className={styles.tabContent}>
-            <AbilityAssigner entityType="creatures" entityId={creatureId} />
+            <AbilityAssigner entityId={creatureId} />
           </div>
         )}
 
@@ -261,7 +260,7 @@ export default function CreatureSheet({ creatureId, onClose, inline }) {
         {/* ── Inventory tab ── */}
         {tab === 'inventory' && (
           <div className={styles.tabContent}>
-            <InventoryPanel entityType="creatures" entityId={creatureId} />
+            <InventoryPanel entityId={creatureId} />
           </div>
         )}
 

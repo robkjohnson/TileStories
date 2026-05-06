@@ -84,7 +84,7 @@ export default function App() {
       const item = container.items?.find(i => i.id === msg.itemId)
       if (!item) return
       state.updateContainer(msg.containerId, { items: container.items.filter(i => i.id !== msg.itemId) })
-      const char = state.campaign?.characters?.[msg.characterId]
+      const char = state.campaign?.actors?.[msg.characterId]
       if (char) {
         const inv = [...(char.inventory || []), { ...item, id: Math.random().toString(36).slice(2, 9) }]
         state.updateCharacter(msg.characterId, { inventory: inv })

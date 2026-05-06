@@ -123,9 +123,9 @@ function sanitizeCampaignForPlayer(camp) {
       Object.entries(camp.story || {})
         .filter(([, e]) => e.visibleToPlayers)
     ),
-    characters: Object.fromEntries(
-      Object.entries(camp.characters || {}).map(([id, c]) => [id, {
-        ...c,
+    actors: Object.fromEntries(
+      Object.entries(camp.actors || {}).map(([id, a]) => [id, {
+        ...a,
         notes: undefined,  // hide organizer notes
       }])
     ),
@@ -191,12 +191,12 @@ wss.on('connection', (ws) => {
         // Place players at assigned tiles — update both character position and tile tokens
         Object.entries(session.players).forEach(([deviceId, p]) => {
           if (p.assignedTile && p.characterId && campaign) {
-            if (!campaign.characters[p.characterId]) {
-              campaign.characters[p.characterId] = p.character
+            if (!campaign.actors[p.characterId]) {
+              campaign.actors[p.characterId] = p.character
             }
             const mapId = p.assignedMapId || session.activeMapId
-            campaign.characters[p.characterId].currentMapId = mapId
-            campaign.characters[p.characterId].currentTile = p.assignedTile
+            campaign.actors[p.characterId].currentMapId = mapId
+            campaign.actors[p.characterId].currentTile = p.assignedTile
 
             // Also place token in tile so it appears on the map
             const map = campaign.maps[mapId]
@@ -355,7 +355,7 @@ wss.on('connection', (ws) => {
         // Reset remainingMovement for the new active player
         const nextEntry = session.turnOrder[0]
         if (nextEntry && campaign) {
-          const nextChar = campaign.characters[nextEntry.id]
+          const nextChar = campaign.actors[nextEntry.id]
           const speed = nextChar?.stats?.speed ?? 3
           Object.values(session.players).forEach(p => {
             if (p.characterId === nextEntry.id) p.remainingMovement = speed
@@ -406,14 +406,15 @@ wss.on('connection', (ws) => {
 
           targets.forEach(player => {
             const charId = player.characterId
-            if (!charId || !campaign.characters[charId]) return
-            const char = campaign.characters[charId]
+            if (!charId || !campaign.actors[charId]) return
+            const char = campaign.actors[charId]
 
-            // Grant currency
+            // Grant currency (currency is now an object { gp, sp, ... })
             if (cs.rewards.currency) {
-              campaign.characters[charId] = {
+              const cur = char.currency || {}
+              campaign.actors[charId] = {
                 ...char,
-                currency: (char.currency || 0) + cs.rewards.currency,
+                currency: { ...cur, gp: (cur.gp || 0) + cs.rewards.currency },
               }
             }
 
@@ -434,7 +435,7 @@ wss.on('connection', (ws) => {
                   })
                 }
               })
-              campaign.characters[charId] = { ...campaign.characters[charId], inventory }
+              campaign.actors[charId] = { ...campaign.actors[charId], inventory }
             }
           })
           // Push updated campaign to everyone
@@ -472,9 +473,9 @@ wss.on('connection', (ws) => {
       // ── Organizer: move a token ───────────────────────────────
       case 'MOVE_TOKEN': {
         if (client.role !== 'organizer' || !session || !campaign) break
-        const { entityType, entityId, tileKey: moveTileKey, mapId: moveMapId } = msg
+        const { entityId, tileKey: moveTileKey, mapId: moveMapId } = msg
         const [moveQ, moveR] = moveTileKey.split(',').map(Number)
-        const entity = campaign[entityType]?.[entityId]
+        const entity = campaign.actors?.[entityId]
         if (!entity) break
 
         // Remove token from old tile
@@ -496,7 +497,7 @@ wss.on('connection', (ws) => {
           destMap.tiles[destKey] = { ...destTile, tokens: [...(destTile.tokens || []).filter(id => id !== entityId), entityId] }
         }
 
-        campaign[entityType][entityId] = { ...entity, currentTile: { q: moveQ, r: moveR }, currentMapId: resolvedMapId }
+        campaign.actors[entityId] = { ...entity, currentTile: { q: moveQ, r: moveR }, currentMapId: resolvedMapId }
         broadcastSessionState()
         break
       }
@@ -519,12 +520,12 @@ wss.on('connection', (ws) => {
 
         // If picking an existing campaign character, fetch it from campaign
         let resolvedChar = character
-        if (character?.id && campaign?.characters?.[character.id]) {
-          // Player selected a campaign character — use full campaign version
-          resolvedChar = { ...campaign.characters[character.id], ...character }
+        if (character?.id && campaign?.actors?.[character.id]) {
+          // Player selected a campaign actor — use full campaign version
+          resolvedChar = { ...campaign.actors[character.id], ...character }
         } else if (character && campaign) {
-          // New character from player device — add to campaign immediately
-          campaign.characters[character.id] = {
+          // New actor from player device — add to campaign immediately
+          campaign.actors[character.id] = {
             ...character,
             addedByPlayer: deviceId,
             addedAt: new Date().toISOString(),
@@ -603,7 +604,7 @@ wss.on('connection', (ws) => {
           const map = campaign.maps[mapId]
           if (!map) { console.log('[MOVE] No map found:', mapId); break }
 
-          const char = campaign.characters[charId]
+          const char = campaign.actors[charId]
           console.log(`[MOVE] char currentTile:`, char?.currentTile, 'currentMapId:', char?.currentMapId)
 
           // Speed check for turn mode
@@ -655,8 +656,8 @@ wss.on('connection', (ws) => {
           const destTile = map.tiles[destKey] ?? { biome: map.defaultBiome, label: '', notes: '', tokens: [], events: [] }
           map.tiles[destKey] = { ...destTile, tokens: [...(destTile.tokens || []).filter(id => id !== charId), charId] }
 
-          // Update character position
-          campaign.characters[charId] = { ...campaign.characters[charId], currentMapId: mapId, currentTile: { q: destQ, r: destR } }
+          // Update actor position
+          campaign.actors[charId] = { ...campaign.actors[charId], currentMapId: mapId, currentTile: { q: destQ, r: destR } }
 
           const sanitized = sanitizeCampaignForPlayer(campaign)
 
@@ -727,7 +728,7 @@ wss.on('connection', (ws) => {
           // Send to all players on the triggering tile
           if (session && msg.tileKey) {
             Object.values(session.players).forEach(player => {
-              const char = campaign?.characters?.[player.characterId]
+              const char = campaign?.actors?.[player.characterId]
               if (char && char.currentTile && `${char.currentTile.q},${char.currentTile.r}` === msg.tileKey) {
                 connectedClients.forEach((c, id) => {
                   if (c.role === 'player' && c.deviceId === player.deviceId && c.ws.readyState === WebSocket.OPEN) {
@@ -825,8 +826,8 @@ wss.on('connection', (ws) => {
                     const destTile = destMap.tiles[destKey] ?? { biome: destMap.defaultBiome, label: '', notes: '', tokens: [], events: [] }
                     destMap.tiles[destKey] = { ...destTile, tokens: [...(destTile.tokens || []).filter(id => id !== charId), charId] }
                     // Update character position
-                    if (campaign.characters[charId]) {
-                      campaign.characters[charId] = { ...campaign.characters[charId], currentMapId: step.targetMapId, currentTile: step.targetTile }
+                    if (campaign.actors[charId]) {
+                      campaign.actors[charId] = { ...campaign.actors[charId], currentMapId: step.targetMapId, currentTile: step.targetTile }
                     }
                   }
                 }
@@ -967,10 +968,10 @@ app.get('/api/campaign-characters', (req, res) => {
   const claimedIds = new Set(
     Object.values(session.players || {}).map(p => p.characterId).filter(Boolean)
   )
-  const unassigned = Object.values(campaign.characters || {})
-    .filter(c => !claimedIds.has(c.id))
-    .map(c => ({ id: c.id, name: c.name, type: c.type, emoji: c.emoji, portrait: c.portrait,
-                 stats: c.stats, publicNotes: c.publicNotes }))
+  const unassigned = Object.values(campaign.actors || {})
+    .filter(a => !claimedIds.has(a.id))
+    .map(a => ({ id: a.id, name: a.name, actorType: a.actorType, emoji: a.emoji, portrait: a.portrait,
+                 stats: a.stats, publicNotes: a.publicNotes }))
   res.json({ characters: unassigned, campaignName: campaign.name })
 })
 

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
+import { tokenColor, tokenDisplay } from './components/CharacterSheet/CharacterSheet'
 import { TOKEN_EMOJIS } from './utils/tokenEmojis'
 import useGameSocket from './utils/useGameSocket'
 import { getDeviceId, savePlayerCharacter, loadPlayerCharacter } from './utils/playerDevice'
@@ -44,7 +45,7 @@ export default function PlayerApp() {
         if (msg.session && msg.campaign) {
           const myPlayerData = msg.session.players?.[deviceId]
           if (myPlayerData?.characterId) {
-            const resolvedChar = msg.campaign.characters?.[myPlayerData.characterId]
+            const resolvedChar = msg.campaign.actors?.[myPlayerData.characterId]
             if (resolvedChar) {
               setCharacter(resolvedChar)
               savePlayerCharacter(resolvedChar)
@@ -68,7 +69,7 @@ export default function PlayerApp() {
           // Also re-sync our character in case organizer added abilities/fields
           setCharacter(prev => {
             if (!prev?.id) return prev
-            const updated = msg.campaign.characters?.[prev.id]
+            const updated = msg.campaign.actors?.[prev.id]
             if (updated) { savePlayerCharacter(updated); return updated }
             return prev
           })
@@ -130,7 +131,7 @@ export default function PlayerApp() {
       const map = prev.maps?.[mapId]
       if (!map) return prev
 
-      const char = prev.characters[charId]
+      const char = prev.actors[charId]
       const tiles = { ...map.tiles }
 
       // Remove from old tile
@@ -149,7 +150,7 @@ export default function PlayerApp() {
       return {
         ...prev,
         maps: { ...prev.maps, [mapId]: { ...map, tiles } },
-        characters: { ...prev.characters, [charId]: { ...(char || character), currentTile: { q, r } } },
+        actors: { ...prev.actors, [charId]: { ...(char || character), currentTile: { q, r } } },
       }
     })
 
@@ -158,7 +159,7 @@ export default function PlayerApp() {
 
   function handlePlayerRoll(diceType = 'd20', threshold = null, requestId = null, description = null) {
     const value = rollDice(diceType)
-    const myChar = (character?.id && campaign?.characters?.[character.id]) || character
+    const myChar = (character?.id && campaign?.actors?.[character.id]) || character
     send({
       type: 'PLAYER_DICE_ROLL',
       characterId: myChar?.id || null,
@@ -221,7 +222,7 @@ export default function PlayerApp() {
 
   function confirmPlayerEffect() {
     if (!playerEffectMode) return
-    const myChar = (character?.id && campaign?.characters?.[character.id]) || character
+    const myChar = (character?.id && campaign?.actors?.[character.id]) || character
     send({
       type: 'PLAYER_USE_EFFECT',
       characterId: myChar?.id,
@@ -404,7 +405,7 @@ export default function PlayerApp() {
     const activeMap = campaign?.maps?.[activeMapId]
     // character state is kept in sync with campaign via SESSION_STATE/CAMPAIGN_UPDATED
     // always prefer the campaign version (has abilities, new fields etc)
-    const myChar = (character?.id && campaign?.characters?.[character.id]) || character
+    const myChar = (character?.id && campaign?.actors?.[character.id]) || character
     const currentTurnEntry = session?.turnOrder?.[session?.currentTurnIndex ?? 0]
     const turnMode = session?.turnMode || 'organizer'
     // Turn order entries use 'id' (the character/creature id directly)
@@ -519,7 +520,7 @@ function drawTileTokens(ctx, sx, sy, tileR, tile, characters, isOrganizer) {
   tokenIds.forEach(charId => {
     const char = characters[charId]
     if (!char) return
-    if (char.type === 'player' || char.isKey || char.revealedToPlayers) {
+    if (char.actorType === 'player' || char.isKey || char.revealedToPlayers) {
       fullTokens.push(char)
     } else if (isOrganizer) {
       dotTokens.push(char)
@@ -538,16 +539,15 @@ function drawTileTokens(ctx, sx, sy, tileR, tile, characters, isOrganizer) {
   fullTokens.slice(0, 3).forEach((char, ti) => {
     const off = fullOffsets[ti] || { x:0, y:0 }
     const tx = sx + off.x, ty = tokenBaseY + off.y
-    const ringColors = { player:'#5b9bd5', npc:'#7bc47f', monster:'#c25a4a' }
-    const bgColors   = { player:'#1a3050', npc:'#1a3020', monster:'#301a1a' }
-    const ring = char.isKey ? '#c8a96e' : (ringColors[char.type] || '#9a9790')
-    const bg   = bgColors[char.type] || '#2a2e34'
+    const tc   = tokenColor(char)
+    const ring = char.isKey ? '#c8a96e' : tc.ring
+    const bg   = tc.bg
 
     ctx.beginPath()
     ctx.arc(tx, ty, tokenR, 0, Math.PI * 2)
     ctx.fillStyle = bg; ctx.fill()
     ctx.strokeStyle = ring
-    ctx.lineWidth = char.type === 'player' ? Math.max(2, tokenR * 0.2) : Math.max(1.5, tokenR * 0.15)
+    ctx.lineWidth = char.actorType === 'player' ? Math.max(2, tokenR * 0.2) : Math.max(1.5, tokenR * 0.15)
     ctx.stroke()
 
     if (tileR > 20) {
@@ -582,14 +582,14 @@ function drawTileTokens(ctx, sx, sy, tileR, tile, characters, isOrganizer) {
       }
     }
 
-    if (tileR > 28 && (char.type === 'player' || char.isKey)) {
+    if (tileR > 28 && (char.actorType === 'player' || char.isKey)) {
       const nameY = ty + tokenR + 2
       const nfs = Math.max(7, Math.min(10, tileR*0.17))
       ctx.font = `600 ${nfs}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'top'
       const nw = ctx.measureText(char.name).width
       ctx.fillStyle = 'rgba(0,0,0,0.65)'
       ctx.fillRect(tx - nw/2 - 3, nameY, nw+6, nfs+3)
-      ctx.fillStyle = char.type === 'player' ? '#5b9bd5' : '#c8a96e'
+      ctx.fillStyle = char.actorType === 'player' ? '#5b9bd5' : '#c8a96e'
       ctx.fillText(char.name, tx, nameY+1)
     }
   })
@@ -606,7 +606,7 @@ function drawTileTokens(ctx, sx, sy, tileR, tile, characters, isOrganizer) {
   if (dotTokens.length > 0 && tileR > 10) {
     const dotR = Math.max(4, tileR*0.1)
     const dotX = sx + tileR*0.5, dotY = sy + tileR*0.5
-    const dotColor = dotTokens.some(c => c.type === 'monster') ? '#c25a4a' : '#c8a96e'
+    const dotColor = dotTokens.some(c => c.actorType === 'monster') ? '#c25a4a' : '#c8a96e'
     ctx.beginPath(); ctx.arc(dotX, dotY, dotR, 0, Math.PI*2)
     ctx.fillStyle = dotColor; ctx.fill()
     ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.lineWidth = 1; ctx.stroke()
@@ -724,7 +724,7 @@ function PlayerMapView({ map, campaign, session, character, send, isMyTurn, onMo
         }
 
         // Draw tokens (tiered by visibility)
-        drawTileTokens(ctx, sx, sy, tileR, tile, campaign?.characters || {}, false)
+        drawTileTokens(ctx, sx, sy, tileR, tile, campaign?.actors || {}, false)
 
         // Character tokens handled by drawTileTokens above
 
@@ -1172,7 +1172,7 @@ function PlayerCharacterView({ character, campaign, localCharacter, send, onRoll
         </div>
         <div>
           <div className={styles.charViewName}>{character.name}</div>
-          <div className={styles.charViewType}>{character.type}</div>
+          <div className={styles.charViewType}>{character.actorType}</div>
         </div>
       </div>
 
@@ -1481,7 +1481,7 @@ function PlayerEffectBar({ effectMode, campaign, map, onCancel, onRotate, onTogg
     effect.targetType === 'tile_select' ? `Tap up to ${count} tile${count > 1 ? 's' : ''} on the map, then confirm.` :
     effect.targetType === 'char_select' ? `Select up to ${count} character${count > 1 ? 's' : ''} below, then confirm.` : ''
 
-  const allChars = Object.values(campaign?.characters || {})
+  const allChars = Object.values(campaign?.actors || {})
     .filter(c => !c.hidden)
     .sort((a, b) => a.name.localeCompare(b.name))
 
@@ -1560,7 +1560,7 @@ function PlayerEffectBar({ effectMode, campaign, map, onCancel, onRotate, onTogg
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <span style={{ flex: 1, fontSize: 11, color: 'var(--accent)' }}>
           {selectedTiles.length > 0 && `${selectedTiles.length} tile${selectedTiles.length > 1 ? 's' : ''} selected`}
-          {selectedChars.length > 0 && selectedChars.map(id => campaign?.characters?.[id]?.name || id).join(', ')}
+          {selectedChars.length > 0 && selectedChars.map(id => campaign?.actors?.[id]?.name || id).join(', ')}
         </span>
         <button
           onClick={onConfirm}
@@ -1597,7 +1597,7 @@ function CharacterSelector({ selected, onSelect }) {
     fetch(`${base}/api/campaign-characters`)
       .then(r => r.json())
       .then(data => {
-        setCampaignChars((data.characters || []).filter(c => c.type === 'player'))
+        setCampaignChars((data.characters || []).filter(c => c.actorType === 'player'))
         if (data.campaignName) setCampaignName(data.campaignName)
       })
       .catch(() => {})
@@ -1656,7 +1656,7 @@ function CharacterSelector({ selected, onSelect }) {
                 <span className={styles.savedCharEmoji}>{c.emoji || '👤'}</span>
                 <div className={styles.savedCharInfo}>
                   <span className={styles.savedCharName}>{c.name}</span>
-                  <span className={styles.savedCharType}>{c.type}</span>
+                  <span className={styles.savedCharType}>{c.actorType}</span>
                 </div>
                 {selected?.id === c.id && <span className={styles.selectedCheck}>✓</span>}
                 <button className={styles.deleteCharBtn}
@@ -1682,7 +1682,7 @@ function CharacterSelector({ selected, onSelect }) {
                 <span className={styles.savedCharEmoji}>{c.emoji || '👤'}</span>
                 <div className={styles.savedCharInfo}>
                   <span className={styles.savedCharName}>{c.name}</span>
-                  <span className={styles.savedCharType}>{c.type}</span>
+                  <span className={styles.savedCharType}>{c.actorType}</span>
                 </div>
                 {selected?.id === c.id && <span className={styles.selectedCheck}>✓</span>}
               </div>
@@ -2178,9 +2178,9 @@ function PlayerContainerPanel({ container, campaign, character, canInteract = tr
 // ── Party view ─────────────────────────────────────────────────
 function PlayerPartyView({ campaign, character }) {
   const [detail, setDetail] = useState(null)
-  const allChars = Object.values(campaign?.characters || {})
-  const players  = allChars.filter(c => c.type === 'player')
-  const revealed = allChars.filter(c => c.type !== 'player' && (c.isKey || c.revealedToPlayers))
+  const allChars = Object.values(campaign?.actors || {})
+  const players  = allChars.filter(c => c.actorType === 'player')
+  const revealed = allChars.filter(c => c.actorType !== 'player' && (c.isKey || c.revealedToPlayers))
 
   function CharCard({ char }) {
     const isMe = char.id === character?.id
@@ -2193,14 +2193,14 @@ function PlayerPartyView({ campaign, character }) {
         <div className={styles.partyCardAvatar}>
           {char.portrait
             ? <img src={char.portrait} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
-            : <span style={{ fontSize: 22 }}>{char.emoji || (char.type === 'player' ? '👤' : '🧙')}</span>
+            : <span style={{ fontSize: 22 }}>{char.emoji || (char.actorType === 'player' ? '👤' : '🧙')}</span>
           }
         </div>
         <div className={styles.partyCardBody}>
           <div className={styles.partyCardRow}>
             <span className={styles.partyCardName}>{char.name}</span>
             {isMe && <span className={styles.partyMeTag}>you</span>}
-            <span className={styles.partyCardType}>{char.type}</span>
+            <span className={styles.partyCardType}>{char.actorType}</span>
           </div>
           {maxHp !== null && (
             <div className={styles.partyHpRow}>

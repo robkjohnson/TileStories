@@ -67,7 +67,7 @@ export default function CampaignSidebar({ open, onClose, onNew, inline }) {
             <div className={styles.currentName}>{campaign.name}</div>
             <div className={styles.currentMeta}>
               {Object.keys(campaign.maps || {}).length} map{Object.keys(campaign.maps || {}).length !== 1 ? 's' : ''} ·
-              {Object.keys(campaign.characters || {}).length} characters
+              {Object.keys(campaign.actors || {}).length} actors
             </div>
           </div>
         )}

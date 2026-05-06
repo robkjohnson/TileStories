@@ -29,7 +29,6 @@ export default function ActiveSession({ session, campaign, send, onEnd }) {
   function approveMoveRequest(req) {
     send({
       type: 'MOVE_TOKEN',
-      entityType: 'characters',
       entityId: req.characterId,
       tileKey: req.tileKey,
     })
@@ -54,7 +53,7 @@ export default function ActiveSession({ session, campaign, send, onEnd }) {
       <div className={styles.sectionLabel}>Players ({players.length})</div>
       <div className={styles.playerList}>
         {players.map(p => {
-          const char = campaign?.characters?.[p.characterId] || p.character
+          const char = campaign?.actors?.[p.characterId] || p.character
           return (
             <div key={p.deviceId} className={styles.activePlayerRow}>
               <span className={styles.playerName}>{p.name}</span>

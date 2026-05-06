@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react'
-import { useStore } from '../../store/useStore'
+import { useStore, getSystem, SYSTEMS } from '../../store/useStore'
 import { listCampaigns, loadCampaign, saveCampaign, exportCampaign, importCampaign } from '../../utils/storage'
 import { useDebouncedField } from '../../utils/useDebouncedStore'
 import AbilityLibrary from '../AbilitySystem/AbilityLibrary'
@@ -8,14 +8,14 @@ import StoryboardEditor from '../Storyboard/StoryboardEditor'
 import TileTypeManager from '../TileTypes/TileTypeManager'
 import StatusLibrary from '../EffectSystem/StatusLibrary'
 import EffectLibrary from '../EffectSystem/EffectLibrary'
+import MapManager from './MapManager'
 import styles from './Sidebar.module.css'
 
 const TABS = [
-  { id: 'campaign',    icon: '⬡',  label: 'Campaign'   },
-  { id: 'storyboards', icon: '🎬', label: 'Storyboards' },
-  { id: 'abilities',   icon: '⚡', label: 'Abilities'   },
-  { id: 'items',       icon: '🎒', label: 'Items'       },
-  { id: 'effects',     icon: '✨', label: 'Effects'     },
+  { id: 'campaign', icon: '⬡',  label: 'Campaign' },
+  { id: 'world',    icon: '🗺', label: 'World'    },
+  { id: 'library',  icon: '📚', label: 'Library'  },
+  { id: 'story',    icon: '📖', label: 'Story'    },
 ]
 
 export default function LeftSidebar({ collapsed }) {
@@ -37,11 +37,10 @@ export default function LeftSidebar({ collapsed }) {
           </div>
 
           <div className={styles.tabContent}>
-            {tab === 'campaign'    && <CampaignTab />}
-            {tab === 'storyboards' && <StoryboardEditor />}
-            {tab === 'abilities'   && <AbilityLibrary />}
-            {tab === 'items'       && <ItemLibrary />}
-            {tab === 'effects'     && <EffectsTab />}
+            {tab === 'campaign' && <CampaignTab />}
+            {tab === 'world'    && <WorldTab />}
+            {tab === 'library'  && <LibraryTab />}
+            {tab === 'story'    && <StoryTab />}
           </div>
         </>
       )}
@@ -49,50 +48,8 @@ export default function LeftSidebar({ collapsed }) {
   )
 }
 
-// ── Effects tab (sub-tabs: Statuses, Effects) ─────────────────
-function EffectsTab() {
-  const [subTab, setSubTab] = useState('statuses')
-  return (
-    <>
-      <div className={styles.subTabBar}>
-        {[['statuses', 'Statuses'], ['effects', 'Effects']].map(([id, label]) => (
-          <button key={id}
-            className={`${styles.subTab} ${subTab === id ? styles.subTabActive : ''}`}
-            onClick={() => setSubTab(id)}>
-            {label}
-          </button>
-        ))}
-      </div>
-      {subTab === 'statuses' && <StatusLibrary />}
-      {subTab === 'effects'  && <EffectLibrary />}
-    </>
-  )
-}
-
-// ── Campaign tab (sub-tabs: Info, Tile Types, Story) ──────────
+// ── Campaign tab ──────────────────────────────────────────────
 function CampaignTab() {
-  const [subTab, setSubTab] = useState('info')
-
-  return (
-    <>
-      <div className={styles.subTabBar}>
-        {[['info', 'Info'], ['tiletypes', 'Tile Types'], ['story', 'Story']].map(([id, label]) => (
-          <button key={id}
-            className={`${styles.subTab} ${subTab === id ? styles.subTabActive : ''}`}
-            onClick={() => setSubTab(id)}>
-            {label}
-          </button>
-        ))}
-      </div>
-      {subTab === 'info'      && <CampaignInfo />}
-      {subTab === 'tiletypes' && <TileTypeManager />}
-      {subTab === 'story'     && <StoryTab />}
-    </>
-  )
-}
-
-// ── Campaign Info ─────────────────────────────────────────────
-function CampaignInfo() {
   const { campaign, setCampaign, updateCampaign } = useStore()
   const [campaigns, setCampaigns] = useState(() => listCampaigns())
   const fileRef = useRef(null)
@@ -103,6 +60,7 @@ function CampaignInfo() {
   function handleLoad(id) {
     const data = loadCampaign(id)
     if (data) setCampaign(data)
+    setCampaigns(listCampaigns())
   }
 
   function handleSave() {
@@ -121,7 +79,7 @@ function CampaignInfo() {
 
   if (!campaign) return (
     <div className={styles.section}>
-      <div className={styles.emptyHint}>No campaign loaded</div>
+      <div className={styles.emptyHint}>No campaign loaded.</div>
     </div>
   )
 
@@ -139,6 +97,7 @@ function CampaignInfo() {
         <input ref={fileRef} type="file" accept=".json" style={{ display: 'none' }} onChange={handleImport} />
       </div>
 
+      <GameSystemSection campaign={campaign} updateCampaign={updateCampaign} />
       <CoverImageEditor />
 
       <div className={styles.section}>
@@ -149,7 +108,7 @@ function CampaignInfo() {
             <div key={c.id} className={`${styles.campaignRow} ${c.id === campaign.id ? styles.campaignRowActive : ''}`}>
               <div className={styles.campaignRowInfo} onClick={() => c.id !== campaign.id && handleLoad(c.id)}>
                 <span className={styles.campaignRowName}>{c.name}</span>
-                <span className={styles.campaignRowMeta}>{c.mapCount} maps</span>
+                <span className={styles.campaignRowMeta}>{c.mapCount} map{c.mapCount !== 1 ? 's' : ''}</span>
               </div>
               {c.id === campaign.id && <span className={styles.activeBadge}>Active</span>}
             </div>
@@ -189,21 +148,252 @@ function CoverImageEditor() {
   )
 }
 
-// ── Story tab ─────────────────────────────────────────────────
+// ── Game system section ───────────────────────────────────────
+function GameSystemSection({ campaign, updateCampaign }) {
+  const [open, setOpen] = useState(false)
+  const system = getSystem(campaign?.gameSystemId)
+
+  return (
+    <div className={styles.section}>
+      <div className={styles.sectionLabel}>Game system</div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}
+        onClick={() => setOpen(o => !o)}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)' }}>{system.name}</div>
+          <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 1 }}>
+            {system.actorTypes.map(t => t.icon).join(' ')}
+          </div>
+        </div>
+        <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>{open ? '▲' : '▼'}</span>
+      </div>
+
+      {open && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 5, marginTop: 6 }}>
+          {SYSTEMS.map(sys => (
+            <button
+              key={sys.id}
+              onClick={() => { updateCampaign({ gameSystemId: sys.id }); setOpen(false) }}
+              style={{
+                padding: '8px 10px',
+                borderRadius: 'var(--radius-sm)',
+                border: `1.5px solid ${sys.id === campaign?.gameSystemId ? 'var(--accent)' : 'var(--border)'}`,
+                background: sys.id === campaign?.gameSystemId ? 'rgba(200,169,110,0.08)' : 'var(--bg-raised)',
+                color: sys.id === campaign?.gameSystemId ? 'var(--accent)' : 'var(--text-secondary)',
+                cursor: 'pointer', textAlign: 'left', transition: 'all 0.1s',
+              }}
+            >
+              <div style={{ fontSize: 12, fontWeight: 600 }}>{sys.name}</div>
+              <div style={{ fontSize: 10, opacity: 0.7, marginTop: 1 }}>{sys.description}</div>
+              <div style={{ fontSize: 10, marginTop: 3, opacity: 0.6 }}>
+                {sys.actorTypes.map(t => `${t.icon} ${t.label}`).join(' · ')}
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── World tab (Maps + Tile Types) ─────────────────────────────
+function WorldTab() {
+  const [subTab, setSubTab] = useState('maps')
+  return (
+    <>
+      <div className={styles.subTabBar}>
+        {[['maps', 'Maps'], ['tiletypes', 'Tile Types']].map(([id, label]) => (
+          <button key={id}
+            className={`${styles.subTab} ${subTab === id ? styles.subTabActive : ''}`}
+            onClick={() => setSubTab(id)}>
+            {label}
+          </button>
+        ))}
+      </div>
+      {subTab === 'maps'      && <MapManager />}
+      {subTab === 'tiletypes' && <TileTypeManager />}
+    </>
+  )
+}
+
+// ── Library tab (Items · Abilities · Statuses · Effects · Containers) ──
+function LibraryTab() {
+  const [subTab, setSubTab] = useState('items')
+  return (
+    <>
+      <div className={styles.subTabBar} style={{ flexWrap: 'wrap', gap: '3px 3px' }}>
+        {[
+          ['items',      'Items'],
+          ['abilities',  'Abilities'],
+          ['statuses',   'Statuses'],
+          ['effects',    'Effects'],
+          ['containers', 'Containers'],
+        ].map(([id, label]) => (
+          <button key={id}
+            className={`${styles.subTab} ${subTab === id ? styles.subTabActive : ''}`}
+            onClick={() => setSubTab(id)}>
+            {label}
+          </button>
+        ))}
+      </div>
+      {subTab === 'items'      && <ItemLibrary />}
+      {subTab === 'abilities'  && <AbilityLibrary />}
+      {subTab === 'statuses'   && <StatusLibrary />}
+      {subTab === 'effects'    && <EffectLibrary />}
+      {subTab === 'containers' && <ContainerLibrary />}
+    </>
+  )
+}
+
+// ── Container Library — global list of all containers ────────
+function ContainerLibrary() {
+  const { campaign, addContainer, updateContainer, deleteContainer } = useStore()
+  const [deleteConfirm, setDeleteConfirm] = useState(null)
+  const [adding, setAdding] = useState(false)
+  const [newName, setNewName] = useState('Chest')
+
+  const containers = Object.values(campaign?.containers || {})
+    .sort((a, b) => a.name.localeCompare(b.name))
+
+  const maps = campaign?.maps || {}
+
+  function getLocation(c) {
+    const map = maps[c.mapId]
+    if (!map) return '(unplaced)'
+    return c.tileKey ? `${map.name} · ${c.tileKey}` : map.name
+  }
+
+  function handleAdd() {
+    if (!newName.trim()) return
+    const activeMapId = campaign?.activeMapId
+    const firstMapId = activeMapId || Object.keys(maps)[0]
+    if (!firstMapId) return
+    addContainer({ mapId: firstMapId, tileKey: null, name: newName.trim(), discovered: true })
+    setAdding(false)
+    setNewName('Chest')
+  }
+
+  function handleDelete(id, e) {
+    e.stopPropagation()
+    if (deleteConfirm === id) { deleteContainer(id); setDeleteConfirm(null) }
+    else setDeleteConfirm(id)
+  }
+
+  return (
+    <>
+      <div className={styles.section}>
+        <div className={styles.sectionLabel}>Containers ({containers.length})</div>
+        {containers.length === 0 && (
+          <div className={styles.emptyHint}>No containers yet. Place them on tiles via the Tile panel.</div>
+        )}
+        {containers.map(c => {
+          const TYPE_ICONS = { chest: '📦', barrel: '🛢', bag: '👜', crate: '🗃', safe: '🔒', other: '📫' }
+          const icon = TYPE_ICONS[c.type] || '📦'
+          return (
+            <div key={c.id} style={{
+              display: 'flex', alignItems: 'center', gap: 7,
+              padding: '6px 8px',
+              borderRadius: 'var(--radius-sm)',
+              border: '0.5px solid var(--border)',
+              background: 'var(--bg-raised)',
+            }}>
+              <span style={{ fontSize: 16, flexShrink: 0 }}>{icon}</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <input
+                  value={c.name}
+                  onChange={e => updateContainer(c.id, { name: e.target.value })}
+                  style={{
+                    background: 'transparent', border: 'none',
+                    color: 'var(--text-primary)', fontSize: 12, fontWeight: 500,
+                    width: '100%', padding: 0,
+                  }}
+                />
+                <div style={{ fontSize: 10, color: 'var(--text-muted)', display: 'flex', gap: 6 }}>
+                  <span>{getLocation(c)}</span>
+                  <span>·</span>
+                  <span>{c.items?.length ?? 0} items</span>
+                  {c.locked && <span>· 🔒 DC {c.lockDC}</span>}
+                  {!c.discovered && <span>· hidden</span>}
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 3, flexShrink: 0 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 10, color: 'var(--text-muted)', cursor: 'pointer' }}>
+                  <input type="checkbox" checked={c.discovered}
+                    onChange={e => updateContainer(c.id, { discovered: e.target.checked })}
+                    style={{ accentColor: 'var(--accent)', width: 11, height: 11 }} />
+                  vis
+                </label>
+                {deleteConfirm === c.id ? (
+                  <div className={styles.deleteConfirmInline}>
+                    <button className={styles.deleteYesBtn} onClick={e => handleDelete(c.id, e)}>✓</button>
+                    <button className={styles.deleteNoBtn} onClick={e => { e.stopPropagation(); setDeleteConfirm(null) }}>✕</button>
+                  </div>
+                ) : (
+                  <button className={styles.deleteInlineBtn} style={{ opacity: 1 }}
+                    onClick={e => handleDelete(c.id, e)}>🗑</button>
+                )}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      <div className={styles.section}>
+        {adding ? (
+          <div className={styles.createForm}>
+            <input className={styles.inlineInput} placeholder="Container name…" value={newName}
+              onChange={e => setNewName(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleAdd()} autoFocus />
+            <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+              Created on the active map. Use the Tile panel to place it on a specific tile.
+            </div>
+            <div className={styles.actionRow}>
+              <button className={styles.cancelBtn} onClick={() => { setAdding(false); setNewName('Chest') }}>Cancel</button>
+              <button className={styles.saveBtn} onClick={handleAdd} disabled={!newName.trim()}>Add</button>
+            </div>
+          </div>
+        ) : (
+          <button className={styles.addEntryBtn} onClick={() => setAdding(true)}>+ Add container</button>
+        )}
+      </div>
+    </>
+  )
+}
+
+// ── Story tab (Storyboards + Lore/Notes) ─────────────────────
 function StoryTab() {
+  const [subTab, setSubTab] = useState('lore')
+  return (
+    <>
+      <div className={styles.subTabBar}>
+        {[['lore', 'Lore & Notes'], ['storyboards', 'Storyboards']].map(([id, label]) => (
+          <button key={id}
+            className={`${styles.subTab} ${subTab === id ? styles.subTabActive : ''}`}
+            onClick={() => setSubTab(id)}>
+            {label}
+          </button>
+        ))}
+      </div>
+      {subTab === 'storyboards' && <StoryboardEditor />}
+      {subTab === 'lore'        && <LoreTab />}
+    </>
+  )
+}
+
+// ── Lore & Notes ──────────────────────────────────────────────
+function LoreTab() {
   const { campaign, addStoryEntry, deleteStoryEntry } = useStore()
   const [expanded, setExpanded] = useState(null)
   const [creating, setCreating] = useState(false)
   const [newType, setNewType] = useState('lore')
-
-  const entries = Object.values(campaign?.story || {})
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
 
   const TYPE_DEF = {
     lore:    { label: 'Lore',    icon: '📜', color: '#c8a96e' },
     secret:  { label: 'Secret',  icon: '🔒', color: '#c25a4a' },
     session: { label: 'Session', icon: '📅', color: '#5b9bd5' },
   }
+
+  const entries = Object.values(campaign?.story || {})
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
 
   function handleCreate() {
     const id = addStoryEntry({ type: newType, title: 'New entry', visibleToPlayers: newType !== 'secret' })
@@ -237,7 +427,7 @@ function StoryTab() {
       </div>
 
       {entries.map(entry => (
-        <StoryEntry
+        <LoreEntry
           key={entry.id}
           entry={entry}
           typeDef={TYPE_DEF[entry.type] || TYPE_DEF.lore}
@@ -250,7 +440,7 @@ function StoryTab() {
   )
 }
 
-function StoryEntry({ entry, typeDef, expanded, onToggle, onDelete }) {
+function LoreEntry({ entry, typeDef, expanded, onToggle, onDelete }) {
   const { updateStoryEntry } = useStore()
   const titleField   = useDebouncedField(entry.title,   v => updateStoryEntry(entry.id, { title: v }))
   const contentField = useDebouncedField(entry.content, v => updateStoryEntry(entry.id, { content: v }))

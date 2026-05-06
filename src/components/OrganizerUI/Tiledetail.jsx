@@ -240,21 +240,19 @@ function DebouncedTileTextarea({ value, onChange, ...rest }) {
 }
 
 function TokensSection({ tileQ, tileR, tile, onOpenEntity }) {
-  const { campaign, updateCharacter, updateCreature, addCharacter, setTileField, placeToken: storePlaceToken } = useStore()
+  const { campaign, updateActor, addCharacter, setTileField, placeToken: storePlaceToken } = useStore()
   const [showRoster, setShowRoster] = useState(false)
   const [rosterFilter, setRosterFilter] = useState('all')
   const [rosterSearch, setRosterSearch] = useState('')
 
   const tokenIds = tile.tokens || []
-  const characters = campaign?.characters || {}
-  const creatures = campaign?.creatures || {}
+  const actors = campaign?.actors || {}
   const activeMapId = campaign?.activeMapId
-  const tileTokens = tokenIds.map(id => characters[id] || creatures[id]).filter(Boolean)
+  const tileTokens = tokenIds.map(id => actors[id]).filter(Boolean)
   const placed = new Set(tokenIds)
-  const availableAll = [
-    ...Object.values(characters).map(c => ({ ...c, entityKind: 'character' })),
-    ...Object.values(creatures).map(c => ({ ...c, entityKind: 'creature' })),
-  ].filter(c => !placed.has(c.id))
+  const CREATURE_TYPES = new Set(['pet','mount','companion','wild','enemy'])
+  const availableAll = Object.values(actors)
+    .filter(c => !placed.has(c.id))
 
   function placeToken(charId) {
     storePlaceToken(charId, tileQ, tileR, activeMapId)
@@ -263,8 +261,7 @@ function TokensSection({ tileQ, tileR, tile, onOpenEntity }) {
 
   function removeToken(charId) {
     setTileField(tileQ, tileR, 'tokens', tokenIds.filter(id => id !== charId))
-    if (creatures[charId]) updateCreature(charId, { currentMapId: null, currentTile: null })
-    else updateCharacter(charId, { currentMapId: null, currentTile: null })
+    updateActor(charId, { currentMapId: null, currentTile: null })
   }
 
   function createAndPlace(type) {
@@ -296,7 +293,7 @@ function TokensSection({ tileQ, tileR, tile, onOpenEntity }) {
             <div className={styles.tokenInfo} onClick={() => onOpenEntity('character', char.id)}>
               <div className={styles.tokenName}>{char.name}</div>
               <div className={styles.tokenMeta} style={{ color: colors.ring }}>
-                {char.type} · HP {char.stats?.hp ?? '?'}/{char.stats?.maxHp ?? '?'}
+                {char.actorType} · HP {char.stats?.hp ?? '?'}/{char.stats?.maxHp ?? '?'}
               </div>
             </div>
             <button className={styles.removeTokenBtn} onClick={() => removeToken(char.id)} title="Remove from tile">↑</button>
@@ -339,7 +336,7 @@ function TokensSection({ tileQ, tileR, tile, onOpenEntity }) {
                 const term = rosterSearch.trim().toLowerCase()
                 const filtered = availableAll.filter(c => {
                   const matchType = rosterFilter === 'all'
-                    || (rosterFilter === 'creature' ? c.entityKind === 'creature' : c.type === rosterFilter)
+                    || (rosterFilter === 'creature' ? CREATURE_TYPES.has(c.actorType) : c.actorType === rosterFilter)
                   const matchSearch = !term || c.name.toLowerCase().includes(term)
                   return matchType && matchSearch
                 })
@@ -352,7 +349,7 @@ function TokensSection({ tileQ, tileR, tile, onOpenEntity }) {
                     <button key={char.id} className={styles.rosterItem} onClick={() => placeToken(char.id)}>
                       <span style={{ fontSize: 16 }}>{tokenDisplay(char)}</span>
                       <span className={styles.rosterName}>{char.name}</span>
-                      <span className={styles.rosterType} style={{ color: colors.ring }}>{char.type}</span>
+                      <span className={styles.rosterType} style={{ color: colors.ring }}>{char.actorType}</span>
                     </button>
                   )
                 })

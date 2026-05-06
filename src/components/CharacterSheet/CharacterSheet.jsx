@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { useStore } from '../../store/useStore'
+import { useStore, getSystem } from '../../store/useStore'
 import { StatusPill } from '../EffectSystem/StatusLibrary'
 import { TOKEN_EMOJIS } from '../../utils/tokenEmojis'
 import styles from './CharacterSheet.module.css'
@@ -9,20 +9,55 @@ import AbilityAssigner from '../AbilitySystem/AbilityAssigner'
 import InventoryPanel from '../ItemSystem/InventoryPanel'
 import { rollDice, DICE_TYPES } from '../../utils/dice'
 
-const TYPE_COLORS = {
-  player:  { ring: '#5b9bd5', bg: '#1a3050', label: 'Player' },
-  npc:     { ring: '#7bc47f', bg: '#1a3020', label: 'NPC' },
-  monster: { ring: '#c25a4a', bg: '#301a1a', label: 'Monster' },
+// Static colors for all built-in actor types across all shipped systems.
+// Any unknown actorType (custom system) is assigned from PALETTE by index.
+const STATIC_COLORS = {
+  player:    { ring: '#5b9bd5', bg: '#1a3050' },
+  npc:       { ring: '#7bc47f', bg: '#1a3020' },
+  monster:   { ring: '#c25a4a', bg: '#301a1a' },
+  enemy:     { ring: '#e06050', bg: '#2a1518' },
+  wild:      { ring: '#9a9790', bg: '#252220' },
+  pet:       { ring: '#7bc47f', bg: '#1a3020' },
+  mount:     { ring: '#c8a96e', bg: '#2a2210' },
+  companion: { ring: '#5b9bd5', bg: '#1a3050' },
+  hero:      { ring: '#f0c040', bg: '#2a2010' },
+  ally:      { ring: '#7bc47f', bg: '#1a3020' },
+  neutral:   { ring: '#9a9790', bg: '#252220' },
+  creature:  { ring: '#c8a96e', bg: '#2a2210' },
+  villain:   { ring: '#9b7bc4', bg: '#201a30' },
 }
-const TYPE_EMOJI = { player: '🧙', npc: '👤', monster: '👹' }
+const STATIC_EMOJI = {
+  player: '🧙', npc: '👤', monster: '👹', enemy: '⚔️',
+  wild: '🐾', pet: '🐕', mount: '🐴', companion: '🤝',
+  hero: '⭐', ally: '🤝', neutral: '👤', creature: '🐾', villain: '💀',
+}
+const PALETTE = ['#5b9bd5','#7bc47f','#c25a4a','#c8a96e','#9b7bc4','#9a9790','#f0c040','#e07040']
+
+// system param is optional — callers that already have it pass it for
+// correct label and icon on custom/unknown actor types.
+export function tokenColor(c, system) {
+  if (STATIC_COLORS[c?.actorType]) return STATIC_COLORS[c.actorType]
+  if (system && c?.actorType) {
+    const idx = system.actorTypes.findIndex(t => t.id === c.actorType)
+    const ring = PALETTE[Math.max(0, idx) % PALETTE.length]
+    return { ring, bg: ring + '22' }
+  }
+  return STATIC_COLORS.npc
+}
+
+export function tokenDisplay(c, system) {
+  if (c?.emoji) return c.emoji
+  if (system) {
+    const typeDef = system.actorTypes.find(t => t.id === c?.actorType)
+    if (typeDef?.icon) return typeDef.icon
+  }
+  return STATIC_EMOJI[c?.actorType] || '👤'
+}
 
 const MAX_PORTRAIT_BYTES = 1.5 * 1024 * 1024  // 1.5 MB per portrait
 const MAX_FILE_BYTES     = 5 * 1024 * 1024     // 5 MB per attachment
 const ACCEPTED_IMAGE     = 'image/jpeg,image/png,image/gif,image/webp'
 const ACCEPTED_FILES     = '.pdf,.txt,.md,.png,.jpg,.jpeg,.gif,.webp'
-
-export function tokenColor(c) { return TYPE_COLORS[c?.type] ?? TYPE_COLORS.npc }
-export function tokenDisplay(c) { return c?.emoji || TYPE_EMOJI[c?.type] || '👤' }
 
 function fmtBytes(b) {
   if (b < 1024) return `${b} B`
@@ -52,7 +87,8 @@ function DebouncedTextarea({ value, onUpdate, rows = 3, placeholder }) {
 
 export default function CharacterSheet({ characterId, onClose, inline }) {
   const { campaign, updateCharacter, deleteCharacter, removeStatusFromCharacter, restCharacter } = useStore()
-  const character = campaign?.characters?.[characterId]
+  const character = campaign?.actors?.[characterId]
+  const system = getSystem(campaign?.gameSystemId)
   const [tab, setTab] = useState('info')  // 'info' | 'abilities' | 'items' | 'files'
   const [traitsDraft, setTraitsDraft] = useState((character?.traits || []).join(', '))
   const [uploadError, setUploadError] = useState(null)
@@ -65,7 +101,7 @@ export default function CharacterSheet({ characterId, onClose, inline }) {
   const fileInputRef = useRef(null)
 
   if (!character) return null
-  const colors = tokenColor(character)
+  const colors = tokenColor(character, system)
 
   function update(field, value) { updateCharacter(characterId, { [field]: value }) }
   function updateStat(stat, value) { updateCharacter(characterId, { stats: { ...character.stats, [stat]: value } }) }
@@ -142,12 +178,19 @@ export default function CharacterSheet({ characterId, onClose, inline }) {
           <div className={styles.headerInfo}>
             <DebouncedNameInput value={character.name} onUpdate={v => update('name', v)} />
             <div className={styles.typeRow}>
-              {Object.entries(TYPE_COLORS).map(([type, c]) => (
-                <button key={type}
-                  className={`${styles.typeBtn} ${character.type === type ? styles.typeBtnActive : ''}`}
-                  style={character.type === type ? { borderColor: c.ring, color: c.ring } : {}}
-                  onClick={() => update('type', type)}>{c.label}</button>
-              ))}
+              {system.actorTypes.map(typeDef => {
+                const c = tokenColor({ actorType: typeDef.id }, system)
+                const active = character.actorType === typeDef.id
+                return (
+                  <button key={typeDef.id}
+                    className={`${styles.typeBtn} ${active ? styles.typeBtnActive : ''}`}
+                    style={active ? { borderColor: c.ring, color: c.ring } : {}}
+                    onClick={() => update('actorType', typeDef.id)}
+                    title={typeDef.label}>
+                    {typeDef.icon} {typeDef.short}
+                  </button>
+                )
+              })}
             </div>
             <div style={{ display:'flex', gap:5, flexWrap:'wrap', marginTop:4 }}>
               <PillToggle
@@ -213,18 +256,18 @@ export default function CharacterSheet({ characterId, onClose, inline }) {
                 onChange={v => updateStat('hp', v)} onMaxChange={v => updateStat('maxHp', v)} showMax />
               <StatField label="Speed" value={character.stats.speed} onChange={v => updateStat('speed', v)} />
             </div>
-            {character.type === 'player' && (
+            {system.actorTypes.find(t => t.id === character.actorType)?.isPlayer && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, padding: '8px 10px', background: 'var(--bg-raised)', borderRadius: 'var(--radius-sm)', border: '0.5px solid var(--border)' }}>
-                <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-muted)', minWidth: 50 }}>Currency</div>
+                <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-muted)', minWidth: 50 }}>Gold (gp)</div>
                 <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--accent)' }}>$</span>
                 <button style={{ width: 24, height: 24, borderRadius: 4, border: '0.5px solid var(--border-strong)', background: 'var(--bg-overlay)', color: 'var(--text-secondary)', fontSize: 15, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                  onClick={() => update('currency', Math.max(0, (character.currency ?? 0) - 1))}>−</button>
+                  onClick={() => update('currency', { ...character.currency, gp: Math.max(0, (character.currency?.gp ?? 0) - 1) })}>−</button>
                 <input type="number" min={0}
-                  value={character.currency ?? 0}
-                  onChange={e => update('currency', Math.max(0, parseFloat(e.target.value) || 0))}
+                  value={character.currency?.gp ?? 0}
+                  onChange={e => update('currency', { ...character.currency, gp: Math.max(0, parseFloat(e.target.value) || 0) })}
                   style={{ width: 64, background: 'transparent', border: 'none', borderBottom: '0.5px solid var(--border-strong)', color: 'var(--text-primary)', fontSize: 16, fontWeight: 600, padding: '0 2px', textAlign: 'center' }} />
                 <button style={{ width: 24, height: 24, borderRadius: 4, border: '0.5px solid var(--border-strong)', background: 'var(--bg-overlay)', color: 'var(--text-secondary)', fontSize: 15, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                  onClick={() => update('currency', (character.currency ?? 0) + 1)}>+</button>
+                  onClick={() => update('currency', { ...character.currency, gp: (character.currency?.gp ?? 0) + 1 })}>+</button>
               </div>
             )}
           </div>
@@ -289,13 +332,18 @@ export default function CharacterSheet({ characterId, onClose, inline }) {
             {(character.activeStatuses || []).length === 0
               ? <div className={styles.hint}>No active statuses.</div>
               : <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                  {(character.activeStatuses || []).map(({ statusId }) => (
-                    <StatusPill key={statusId} statusId={statusId} campaign={campaign}
-                      onRemove={() => removeStatusFromCharacter(characterId, statusId)} />
+                  {(character.activeStatuses || []).map(entry => (
+                    <StatusPill key={entry.statusId} statusId={entry.statusId} campaign={campaign} entry={entry}
+                      onRemove={() => removeStatusFromCharacter(characterId, entry.statusId)} />
                   ))}
                 </div>
             }
           </div>
+
+          {/* Damage defenses */}
+          {(system.damageTypes?.length > 0) && (
+            <DefenseSection character={character} system={system} onUpdate={(f, v) => update(f, v)} />
+          )}
 
           <SheetDiceRoller character={character} />
         </>}
@@ -303,7 +351,7 @@ export default function CharacterSheet({ characterId, onClose, inline }) {
         {/* ── Abilities tab ── */}
         {tab === 'abilities' && (
           <div className={styles.section}>
-            <AbilityAssigner entityType="characters" entityId={characterId} />
+            <AbilityAssigner entityId={characterId} />
           </div>
         )}
 
@@ -368,7 +416,7 @@ export default function CharacterSheet({ characterId, onClose, inline }) {
         {/* ── Items tab ── */}
         {tab === 'items' && (
           <div className={styles.section}>
-            <InventoryPanel entityType="characters" entityId={characterId} />
+            <InventoryPanel entityId={characterId} />
           </div>
         )}
 
@@ -446,6 +494,47 @@ function StatField({ label, value, max, onChange, onMaxChange, showMax }) {
             onChange={e => onMaxChange(parseInt(e.target.value) || 0)} />
         </>}
       </div>
+    </div>
+  )
+}
+
+// ── Damage defenses (resistances, vulnerabilities, immunities) ───
+function DefenseSection({ character, system, onUpdate }) {
+  const allTypes = (system.damageTypes || []).filter(t => t !== 'none')
+
+  function toggle(field, type) {
+    const cur = character[field] || []
+    onUpdate(field, cur.includes(type) ? cur.filter(t => t !== type) : [...cur, type])
+  }
+
+  const ROWS = [
+    { field: 'immunities',     label: 'Immune',     color: '#7bc47f' },
+    { field: 'resistances',    label: 'Resistant',  color: '#5b9bd5' },
+    { field: 'vulnerabilities',label: 'Vulnerable', color: '#c25a4a' },
+  ]
+
+  return (
+    <div className={styles.section}>
+      <div className={styles.sectionLabel}>Damage defenses</div>
+      {ROWS.map(({ field, label, color }) => (
+        <div key={field} style={{ marginBottom: 8 }}>
+          <div style={{ fontSize: 10, color: 'var(--text-muted)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+            {allTypes.map(t => {
+              const active = (character[field] || []).includes(t)
+              return (
+                <button key={t} onClick={() => toggle(field, t)} style={{
+                  padding: '2px 8px', fontSize: 10, borderRadius: 10, cursor: 'pointer',
+                  border: `1px solid ${active ? color : 'var(--border)'}`,
+                  background: active ? color + '22' : 'transparent',
+                  color: active ? color : 'var(--text-muted)',
+                  textTransform: 'capitalize', transition: 'all 0.1s',
+                }}>{t}</button>
+              )
+            })}
+          </div>
+        </div>
+      ))}
     </div>
   )
 }

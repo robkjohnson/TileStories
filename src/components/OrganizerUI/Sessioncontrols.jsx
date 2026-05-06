@@ -98,7 +98,7 @@ export default function SessionControls() {
         <div className={styles.section}>
           <div className={styles.sectionLabel}>Players ({players.length})</div>
           {players.map(p => {
-            const char = campaign?.characters?.[p.characterId] || p.character
+            const char = campaign?.actors?.[p.characterId] || p.character
             return (
               <div key={p.deviceId} className={styles.playerRow}>
                 <span className={styles.playerName}>{p.name}</span>
@@ -288,9 +288,9 @@ function DiceSection({ diceRolls, players, campaign, send }) {
                     checked={selectedPlayers.has(p.deviceId)}
                     onChange={() => togglePlayer(p.deviceId)} />
                   <span className={styles.csPlayerName}>{p.name}</span>
-                  {(campaign?.characters?.[p.characterId] || p.character)?.name && (
+                  {(campaign?.actors?.[p.characterId] || p.character)?.name && (
                     <span className={styles.csPlayerChar}>
-                      {(campaign?.characters?.[p.characterId] || p.character).name}
+                      {(campaign?.actors?.[p.characterId] || p.character).name}
                     </span>
                   )}
                 </label>

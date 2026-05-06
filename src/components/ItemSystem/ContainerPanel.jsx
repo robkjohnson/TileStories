@@ -32,8 +32,7 @@ function ContainerCard({ container: c }) {
   const [deleteConfirm, setDeleteConfirm] = useState(false)
   const typeDef = CONTAINER_TYPES.find(t => t.id === c.type) || CONTAINER_TYPES[0]
   const allTemplates = campaign?.items || {}
-  const characters = Object.values(campaign?.characters || {})
-  const creatures = Object.values(campaign?.creatures || {})
+  const actors = Object.values(campaign?.actors || {})
 
   const available = Object.values(allTemplates).filter(t =>
     search === '' || t.name.toLowerCase().includes(search.toLowerCase())
@@ -99,12 +98,11 @@ function ContainerCard({ container: c }) {
                     <ItemCard template={tmpl} instance={instance} compact />
                     <div className={styles.itemRowActions}>
                       {/* Transfer to character/creature */}
-                      {characters.length + creatures.length > 0 && (
+                      {actors.length > 0 && (
                         <TransferMenu
                           instance={instance}
                           containerId={c.id}
-                          characters={characters}
-                          creatures={creatures}
+                          actors={actors}
                         />
                       )}
                       <button className={styles.removeItemBtn}
@@ -163,15 +161,11 @@ function ContainerCard({ container: c }) {
   )
 }
 
-function TransferMenu({ instance, containerId, characters, creatures }) {
+function TransferMenu({ instance, containerId, actors }) {
   const { transferFromContainer } = useStore()
   const [open, setOpen] = useState(false)
-  const all = [
-    ...characters.map(c => ({ id: c.id, name: c.name, type: 'characters', label: c.type })),
-    ...creatures.map(c => ({ id: c.id, name: c.name, type: 'creatures', label: c.type })),
-  ]
 
-  if (all.length === 0) return null
+  if (actors.length === 0) return null
 
   return (
     <div style={{ position: 'relative' }}>
@@ -180,10 +174,10 @@ function TransferMenu({ instance, containerId, characters, creatures }) {
         <>
           <div style={{ position: 'fixed', inset: 0, zIndex: 49 }} onClick={() => setOpen(false)} />
           <div className={styles.transferMenu}>
-            {all.map(e => (
-              <button key={e.id} className={styles.transferItem}
-                onClick={() => { transferFromContainer(containerId, instance.id, e.type, e.id); setOpen(false) }}>
-                {e.name} <span className={styles.transferType}>({e.label})</span>
+            {actors.map(a => (
+              <button key={a.id} className={styles.transferItem}
+                onClick={() => { transferFromContainer(containerId, instance.id, a.id); setOpen(false) }}>
+                {a.name} <span className={styles.transferType}>({a.actorType})</span>
               </button>
             ))}
           </div>

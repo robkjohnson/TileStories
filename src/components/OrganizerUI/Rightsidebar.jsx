@@ -1,18 +1,16 @@
-import React, { useState, Suspense, lazy } from 'react'
+import React, { useState, lazy, Suspense } from 'react'
 import { useStore } from '../../store/useStore'
-import { useSessionStore } from '../../store/useSessionStore'
 import TileDetail from './TileDetail'
-import CharacterRoster from './CharacterRoster'
 import SessionControls from './SessionControls'
 import styles from './Sidebar.module.css'
 
-// Hoisted outside component so lazy() is only called once
-const CharacterSheet = lazy(() => import('../CharacterSheet/CharacterSheet'))
-const CreatureSheet  = lazy(() => import('../CreatureSheet/CreatureSheet'))
+const CharacterSheet  = lazy(() => import('../CharacterSheet/CharacterSheet'))
+const CreatureSheet   = lazy(() => import('../CreatureSheet/CreatureSheet'))
+const CharacterRoster = lazy(() => import('./CharacterRoster'))
 
 const TABS = [
   { id: 'tile',     icon: '⬡',  label: 'Tile'     },
-  { id: 'roster',   icon: '👥',  label: 'Roster'   },
+  { id: 'actors',   icon: '👥', label: 'Actors'   },
   { id: 'session',  icon: '▶',  label: 'Session'  },
   { id: 'settings', icon: '⚙️', label: 'Settings' },
 ]
@@ -23,72 +21,80 @@ export default function RightSidebar({ collapsed }) {
   const [entityStack, setEntityStack] = useState([])
 
   React.useEffect(() => {
-    if (selectedTile && entityStack.length === 0) setTab('tile')
+    if (selectedTile) { setTab('tile'); setEntityStack([]) }
   }, [selectedTile?.q, selectedTile?.r])
 
   function pushEntity(type, id) { setEntityStack(s => [...s, { type, id }]) }
-  function popEntity() { setEntityStack(s => s.slice(0, -1)) }
+  function popEntity()           { setEntityStack(s => s.slice(0, -1)) }
+  const topEntity = entityStack[entityStack.length - 1] ?? null
 
-  const topEntity = entityStack.length > 0 ? entityStack[entityStack.length - 1] : null
+  function handleTabChange(id) {
+    setTab(id)
+    setEntityStack([])
+  }
 
   return (
     <div className={`${styles.sidebar} ${styles.right}`}>
-      {!collapsed && <>
-        {/* Tab bar */}
-        <div className={styles.tabBar}>
-          {TABS.map(t => (
-            <button key={t.id}
-              className={`${styles.tab} ${tab === t.id ? styles.tabActive : ''}`}
-              onClick={() => { setTab(t.id); setEntityStack([]) }}
-              title={t.label}>
-              <span className={styles.tabIcon}>{t.icon}</span>
-              <span className={styles.tabLabel}>{t.label}</span>
-            </button>
-          ))}
-        </div>
-
-        {/* Back breadcrumb when drilling into entity */}
-        {topEntity && (
-          <div className={styles.breadcrumb}>
-            <button className={styles.backBtn} onClick={popEntity}>← Back</button>
-            <span className={styles.breadcrumbLabel}>
-              {topEntity.type === 'character' ? 'Character' : 'Creature'}
-            </span>
+      {!collapsed && (
+        <>
+          <div className={styles.tabBar}>
+            {TABS.map(t => (
+              <button key={t.id}
+                className={`${styles.tab} ${tab === t.id ? styles.tabActive : ''}`}
+                onClick={() => handleTabChange(t.id)}
+                title={t.label}>
+                <span className={styles.tabIcon}>{t.icon}</span>
+                <span className={styles.tabLabel}>{t.label}</span>
+              </button>
+            ))}
           </div>
-        )}
 
-        <div className={styles.tabContent}>
-          {/* Entity drill-down overlays any tab */}
-          {topEntity ? (
-            <EntityDetail entity={topEntity} onBack={popEntity} />
-          ) : (
-            <>
-              {tab === 'tile'     && <TileDetail onOpenEntity={pushEntity} />}
-              {tab === 'roster'   && <CharacterRoster onOpenEntity={pushEntity} />}
-              {tab === 'session'  && <SessionControls />}
-              {tab === 'settings' && <SettingsTab />}
-            </>
+          {topEntity && (
+            <div className={styles.breadcrumb}>
+              <button className={styles.backBtn} onClick={popEntity}>← Back</button>
+              <span className={styles.breadcrumbLabel}>
+                {topEntity.type === 'character' ? 'Character' : 'Creature'}
+              </span>
+            </div>
           )}
-        </div>
-      </>}
-    </div>
-  )
-}
 
-function EntityDetail({ entity, onBack }) {
-  return (
-    <Suspense fallback={<div className={styles.loading}>Loading…</div>}>
-      {entity.type === 'character'
-        ? <CharacterSheet characterId={entity.id} inline onClose={onBack} />
-        : <CreatureSheet  creatureId={entity.id}  inline onClose={onBack} />
-      }
-    </Suspense>
+          <div className={styles.tabContent}>
+            {topEntity ? (
+              <Suspense fallback={<div className={styles.loading}>Loading…</div>}>
+                {topEntity.type === 'character'
+                  ? <CharacterSheet characterId={topEntity.id} inline onClose={popEntity} />
+                  : <CreatureSheet  creatureId={topEntity.id}  inline onClose={popEntity} />
+                }
+              </Suspense>
+            ) : (
+              <>
+                {tab === 'tile'     && <TileDetail onOpenEntity={pushEntity} />}
+                {tab === 'actors'   && (
+                  <Suspense fallback={<div className={styles.loading}>Loading…</div>}>
+                    <CharacterRoster onOpenEntity={pushEntity} />
+                  </Suspense>
+                )}
+                {tab === 'session'  && <SessionControls />}
+                {tab === 'settings' && <SettingsTab />}
+              </>
+            )}
+          </div>
+        </>
+      )}
+    </div>
   )
 }
 
 // ── Settings tab ──────────────────────────────────────────────
 function SettingsTab() {
-  const { showGrid, toggleGrid, showCoords, toggleCoords, showAllLabels, toggleAllLabels, labelSize, setLabelSize, statusIconSize, setStatusIconSize } = useStore()
+  const {
+    showGrid, toggleGrid,
+    showCoords, toggleCoords,
+    showAllLabels, toggleAllLabels,
+    labelSize, setLabelSize,
+    statusIconSize, setStatusIconSize,
+  } = useStore()
+
   return (
     <div className={styles.section}>
       <div className={styles.sectionLabel}>Map display</div>
@@ -109,14 +115,18 @@ function SettingsTab() {
         <input type="range" min={0.5} max={2} step={0.1} value={labelSize}
           onChange={e => setLabelSize(parseFloat(e.target.value))}
           style={{ width: 72, accentColor: 'var(--accent)' }} />
-        <span style={{ fontSize: 10, color: 'var(--text-muted)', minWidth: 28, textAlign: 'right' }}>{labelSize.toFixed(1)}×</span>
+        <span style={{ fontSize: 10, color: 'var(--text-muted)', minWidth: 28, textAlign: 'right' }}>
+          {labelSize.toFixed(1)}×
+        </span>
       </div>
       <div className={styles.settingRow}>
         <span style={{ flex: 1 }}>Status icon size</span>
         <input type="range" min={0.4} max={2} step={0.1} value={statusIconSize}
           onChange={e => setStatusIconSize(parseFloat(e.target.value))}
           style={{ width: 72, accentColor: 'var(--accent)' }} />
-        <span style={{ fontSize: 10, color: 'var(--text-muted)', minWidth: 28, textAlign: 'right' }}>{statusIconSize.toFixed(1)}×</span>
+        <span style={{ fontSize: 10, color: 'var(--text-muted)', minWidth: 28, textAlign: 'right' }}>
+          {statusIconSize.toFixed(1)}×
+        </span>
       </div>
     </div>
   )

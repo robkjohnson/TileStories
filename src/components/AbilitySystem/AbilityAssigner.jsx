@@ -4,13 +4,12 @@ import { AbilityCard } from './AbilityLibrary'
 import { formatDamage } from '../../utils/dice'
 import styles from './AbilityAssigner.module.css'
 
-// entityType: 'creatures' | 'characters'
-export default function AbilityAssigner({ entityType, entityId }) {
+export default function AbilityAssigner({ entityId }) {
   const { campaign, assignAbility, removeAbility, updateAbilityInstance } = useStore()
   const [showPicker, setShowPicker] = useState(false)
   const [search, setSearch] = useState('')
 
-  const entity = campaign?.[entityType]?.[entityId]
+  const entity = campaign?.actors?.[entityId]
   const allTemplates = campaign?.abilities || {}
   const instances = entity?.abilities || []
 
@@ -30,12 +29,12 @@ export default function AbilityAssigner({ entityType, entityId }) {
     if (!tmpl?.usesPerRest) return // unlimited, nothing to track
     const current = instance?.usesRemaining ?? tmpl.usesPerRest
     if (current <= 0) return
-    updateAbilityInstance(entityType, entityId, templateId, { usesRemaining: current - 1 })
+    updateAbilityInstance(entityId, templateId, { usesRemaining: current - 1 })
   }
 
   function handleRestore(templateId) {
     const tmpl = allTemplates[templateId]
-    updateAbilityInstance(entityType, entityId, templateId, {
+    updateAbilityInstance(entityId, templateId, {
       usesRemaining: tmpl?.usesPerRest ?? null
     })
   }
@@ -66,7 +65,7 @@ export default function AbilityAssigner({ entityType, entityId }) {
                     </button>
                   )}
                   <button className={styles.removeBtn}
-                    onClick={() => removeAbility(entityType, entityId, instance.templateId)}
+                    onClick={() => removeAbility(entityId, instance.templateId)}
                     title="Remove ability">×</button>
                 </div>
               </div>
@@ -102,7 +101,7 @@ export default function AbilityAssigner({ entityType, entityId }) {
                 const dmg = formatDamage(tmpl.damageDice, tmpl.damageType, tmpl.damageBonus)
                 return (
                   <button key={tmpl.id} className={styles.pickerItem}
-                    onClick={() => { assignAbility(entityType, entityId, tmpl.id); setSearch('') }}>
+                    onClick={() => { assignAbility(entityId, tmpl.id); setSearch('') }}>
                     <span className={styles.pickerIcon}>{cat.icon}</span>
                     <div className={styles.pickerInfo}>
                       <span className={styles.pickerName}>{tmpl.name}</span>

@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
+import { tokenColor, tokenDisplay } from './components/CharacterSheet/CharacterSheet'
 import useGameSocket from './utils/useGameSocket'
 import { hexToPixel, hexCorners, gridBounds, HEX_SIZE, squareToPixel, squareCorners, squareGridBounds, SQUARE_SIZE } from './utils/hexMath'
 import { getTileType } from './utils/biomes'
@@ -275,7 +276,7 @@ function drawTileTokens(ctx, sx, sy, tileR, tile, characters, isOrganizer) {
   tokenIds.forEach(charId => {
     const char = characters[charId]
     if (!char) return
-    if (char.type === 'player' || char.isKey || char.revealedToPlayers) {
+    if (char.actorType === 'player' || char.isKey || char.revealedToPlayers) {
       fullTokens.push(char)
     } else if (isOrganizer) {
       dotTokens.push(char)
@@ -294,16 +295,15 @@ function drawTileTokens(ctx, sx, sy, tileR, tile, characters, isOrganizer) {
   fullTokens.slice(0, 3).forEach((char, ti) => {
     const off = fullOffsets[ti] || { x:0, y:0 }
     const tx = sx + off.x, ty = tokenBaseY + off.y
-    const ringColors = { player:'#5b9bd5', npc:'#7bc47f', monster:'#c25a4a' }
-    const bgColors   = { player:'#1a3050', npc:'#1a3020', monster:'#301a1a' }
-    const ring = char.isKey ? '#c8a96e' : (ringColors[char.type] || '#9a9790')
-    const bg   = bgColors[char.type] || '#2a2e34'
+    const tc   = tokenColor(char)
+    const ring = char.isKey ? '#c8a96e' : tc.ring
+    const bg   = tc.bg
 
     ctx.beginPath()
     ctx.arc(tx, ty, tokenR, 0, Math.PI * 2)
     ctx.fillStyle = bg; ctx.fill()
     ctx.strokeStyle = ring
-    ctx.lineWidth = char.type === 'player' ? Math.max(2, tokenR * 0.2) : Math.max(1.5, tokenR * 0.15)
+    ctx.lineWidth = char.actorType === 'player' ? Math.max(2, tokenR * 0.2) : Math.max(1.5, tokenR * 0.15)
     ctx.stroke()
 
     if (tileR > 20) {
@@ -329,14 +329,14 @@ function drawTileTokens(ctx, sx, sy, tileR, tile, characters, isOrganizer) {
       }
     }
 
-    if (tileR > 28 && (char.type === 'player' || char.isKey)) {
+    if (tileR > 28 && (char.actorType === 'player' || char.isKey)) {
       const nameY = ty + tokenR + 2
       const nfs = Math.max(7, Math.min(10, tileR*0.17))
       ctx.font = `600 ${nfs}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'top'
       const nw = ctx.measureText(char.name).width
       ctx.fillStyle = 'rgba(0,0,0,0.65)'
       ctx.fillRect(tx - nw/2 - 3, nameY, nw+6, nfs+3)
-      ctx.fillStyle = char.type === 'player' ? '#5b9bd5' : '#c8a96e'
+      ctx.fillStyle = char.actorType === 'player' ? '#5b9bd5' : '#c8a96e'
       ctx.fillText(char.name, tx, nameY+1)
     }
   })
@@ -353,7 +353,7 @@ function drawTileTokens(ctx, sx, sy, tileR, tile, characters, isOrganizer) {
   if (dotTokens.length > 0 && tileR > 10) {
     const dotR = Math.max(4, tileR*0.1)
     const dotX = sx + tileR*0.5, dotY = sy + tileR*0.5
-    const dotColor = dotTokens.some(c => c.type === 'monster') ? '#c25a4a' : '#c8a96e'
+    const dotColor = dotTokens.some(c => c.actorType === 'monster') ? '#c25a4a' : '#c8a96e'
     ctx.beginPath(); ctx.arc(dotX, dotY, dotR, 0, Math.PI*2)
     ctx.fillStyle = dotColor; ctx.fill()
     ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.lineWidth = 1; ctx.stroke()
@@ -390,7 +390,7 @@ function DisplayMapView({ map, campaign, session }) {
     ctx.fillStyle = '#141618'
     ctx.fillRect(0, 0, W, H)
 
-    const characters = campaign?.characters || {}
+    const characters = campaign?.actors || {}
     const containers = Object.values(campaign?.containers || {})
       .filter(c => c.mapId === map.id && c.discovered)
 

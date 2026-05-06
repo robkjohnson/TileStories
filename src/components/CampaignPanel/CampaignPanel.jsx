@@ -244,10 +244,10 @@ function CharactersTab({ onOpenSheet }) {
   const [deleteConfirm, setDeleteConfirm] = useState(null)
 
   if (!campaign) return null
-  const characters = Object.values(campaign.characters || {})
+  const characters = Object.values(campaign.actors || {}).filter(a => ['player','npc','monster'].includes(a.actorType))
 
   const filtered = characters.filter(c => {
-    if (filter !== 'all' && c.type !== filter) return false
+    if (filter !== 'all' && c.actorType !== filter) return false
     if (search && !c.name.toLowerCase().includes(search.toLowerCase())) return false
     return true
   })
@@ -277,7 +277,7 @@ function CharactersTab({ onOpenSheet }) {
       {/* Add buttons */}
       <div className={styles.addRow}>
         {['player', 'npc', 'monster'].map(type => {
-          const colors = tokenColor({ type })
+          const colors = tokenColor({ actorType: type })
           return (
             <button key={type} className={styles.addCharBtn}
               style={{ borderColor: colors.ring + '80', color: colors.ring }}
@@ -302,7 +302,7 @@ function CharactersTab({ onOpenSheet }) {
             {TYPE_FILTERS.map(f => (
               <button key={f} className={`${styles.filterBtn} ${filter === f ? styles.filterBtnActive : ''}`}
                 onClick={() => setFilter(f)}>
-                {f === 'all' ? `All (${characters.length})` : `${f.charAt(0).toUpperCase() + f.slice(1)}s (${characters.filter(c => c.type === f).length})`}
+                {f === 'all' ? `All (${characters.length})` : `${f.charAt(0).toUpperCase() + f.slice(1)}s (${characters.filter(c => c.actorType === f).length})`}
               </button>
             ))}
           </div>
@@ -335,7 +335,7 @@ function CharactersTab({ onOpenSheet }) {
                 <div className={styles.charInfo} onClick={() => onOpenSheet(char.id)}>
                   <div className={styles.charName}>{char.name}</div>
                   <div className={styles.charMeta} style={{ color: colors.ring }}>
-                    {char.type} · HP {char.stats?.hp ?? '?'}/{char.stats?.maxHp ?? '?'}
+                    {char.actorType} · HP {char.stats?.hp ?? '?'}/{char.stats?.maxHp ?? '?'}
                   </div>
                   {loc && <div className={styles.charLocation}>📍 {loc}</div>}
                 </div>
@@ -510,7 +510,7 @@ function CreaturesTab({ onOpenSheet }) {
 
   if (!campaign) return null
 
-  const creatures = Object.values(campaign.creatures || {})
+  const creatures = Object.values(campaign.actors || {}).filter(a => ['pet','mount','companion','wild','enemy'].includes(a.actorType))
 
   const TYPE_COLORS = {
     pet: '#7bc47f', mount: '#c8a96e', companion: '#5b9bd5',
@@ -520,7 +520,7 @@ function CreaturesTab({ onOpenSheet }) {
   const FILTERS = ['all', 'pet', 'mount', 'companion', 'wild', 'enemy']
 
   const filtered = creatures.filter(c => {
-    if (filter !== 'all' && c.type !== filter) return false
+    if (filter !== 'all' && c.actorType !== filter) return false
     if (search && !c.name.toLowerCase().includes(search.toLowerCase()) &&
         !c.species?.toLowerCase().includes(search.toLowerCase())) return false
     return true
@@ -533,7 +533,7 @@ function CreaturesTab({ onOpenSheet }) {
 
   function getOwnerName(c) {
     if (!c.ownedBy) return null
-    return campaign.characters?.[c.ownedBy]?.name || null
+    return campaign.actors?.[c.ownedBy]?.name || null
   }
 
   return (
@@ -559,7 +559,7 @@ function CreaturesTab({ onOpenSheet }) {
               <button key={f}
                 className={`${styles.filterBtn} ${filter === f ? styles.filterBtnActive : ''}`}
                 onClick={() => setFilter(f)}>
-                {f === 'all' ? `All (${creatures.length})` : `${TYPE_LABELS[f]}s (${creatures.filter(c => c.type === f).length})`}
+                {f === 'all' ? `All (${creatures.length})` : `${TYPE_LABELS[f]}s (${creatures.filter(c => c.actorType === f).length})`}
               </button>
             ))}
           </div>
@@ -570,9 +570,9 @@ function CreaturesTab({ onOpenSheet }) {
         ? <div className={styles.emptyChars}>{creatures.length === 0 ? 'No creatures yet' : 'No matches'}</div>
         : <div className={styles.charList}>
             {filtered.map(creature => {
-              const color = TYPE_COLORS[creature.type] || '#9a9790'
+              const color = TYPE_COLORS[creature.actorType] || '#9a9790'
               const owner = getOwnerName(creature)
-              const sb = creature.statBlock || {}
+              const sb = creature.stats || {}
               return (
                 <div key={creature.id} className={styles.charRow}
                   style={{ borderLeftColor: color }}
@@ -590,7 +590,7 @@ function CreaturesTab({ onOpenSheet }) {
                   <div className={styles.charInfo}>
                     <div className={styles.charName}>{creature.name}</div>
                     <div className={styles.charMeta} style={{ color }}>
-                      {TYPE_LABELS[creature.type]}{creature.species ? ` · ${creature.species}` : ''} · CR {sb.cr || '?'} · HP {sb.hp}/{sb.maxHp}
+                      {TYPE_LABELS[creature.actorType]}{creature.species ? ` · ${creature.species}` : ''} · CR {sb.cr || '?'} · HP {sb.hp}/{sb.maxHp}
                     </div>
                     {owner && <div className={styles.charLocation}>👤 {owner}</div>}
                   </div>

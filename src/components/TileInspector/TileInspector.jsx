@@ -218,12 +218,12 @@ function TokensSection({ tile, tileQ, tileR, onOpenSheet }) {
   const [showRoster, setShowRoster] = useState(false)
 
   const tokenIds = tile.tokens || []
-  const characters = campaign?.characters || {}
+  const characters = campaign?.actors || {}
 
-  // Characters on this tile
+  // Actors on this tile
   const tileTokens = tokenIds.map(id => characters[id]).filter(Boolean)
 
-  // Characters not on this map tile (available to place)
+  // Actors not on this map tile (available to place)
   const activeMapId = campaign?.activeMapId
   const available = Object.values(characters).filter(c =>
     !(c.currentMapId === activeMapId && c.currentTile?.q === tileQ && c.currentTile?.r === tileR)
@@ -309,7 +309,7 @@ function TokensSection({ tile, tileQ, tileR, onOpenSheet }) {
                 <button key={char.id} className={styles.rosterItem} onClick={() => placeToken(char.id)}>
                   <TokenDot character={char} size={26} />
                   <span className={styles.rosterName}>{char.name}</span>
-                  <span className={styles.rosterType}>{char.type}</span>
+                  <span className={styles.rosterType}>{char.actorType}</span>
                 </button>
               ))}
             </>
@@ -329,7 +329,7 @@ function TokenCard({ character, onOpen, onRemove }) {
       <div className={styles.tokenCardInfo}>
         <div className={styles.tokenCardName} onClick={onOpen}>{character.name}</div>
         <div className={styles.tokenCardMeta} style={{ color: colors.ring }}>
-          {character.type} · HP {character.stats?.hp ?? '?'}/{character.stats?.maxHp ?? '?'}
+          {character.actorType} · HP {character.stats?.hp ?? '?'}/{character.stats?.maxHp ?? '?'}
         </div>
       </div>
       <button className={styles.tokenCardRemove} onClick={onRemove} title="Remove from tile">↑</button>

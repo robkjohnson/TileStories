@@ -1,5 +1,6 @@
 import React, { useRef, useEffect } from 'react'
 import { useStore } from '../../store/useStore'
+import { tokenColor, tokenDisplay } from '../CharacterSheet/CharacterSheet'
 import { hexToPixel, hexCorners, pixelToHex, gridBounds, HEX_SIZE, squareToPixel, squareCorners, pixelToSquare, squareGridBounds, SQUARE_SIZE } from '../../utils/hexMath'
 import { rotateAoePattern } from '../../store/useStore'
 import { getTileType } from '../../utils/biomes'
@@ -198,7 +199,7 @@ export default function HexGrid() {
         // Labels always drawn AFTER tokens so they sit on top
         const tokenIds = tile.tokens || []
         if (tokenIds.length > 0 && tileR > 12) {
-          const characters = storeRef.current.campaign?.characters || {}
+          const characters = storeRef.current.campaign?.actors || {}
           const isOrganizer = storeRef.current.viewerMode !== 'player'
 
           // Separate tokens into tiers
@@ -208,7 +209,7 @@ export default function HexGrid() {
           tokenIds.forEach(charId => {
             const char = characters[charId]
             if (!char) return
-            const isPlayer   = char.type === 'player'
+            const isPlayer   = char.actorType === 'player'
             const isKey      = char.isKey
             const isRevealed = char.revealedToPlayers
             if (isPlayer || isKey || isRevealed) {
@@ -235,10 +236,9 @@ export default function HexGrid() {
             const tx = sx + off.x
             const ty = tokenBaseY + off.y
 
-            const ringColors = { player: '#5b9bd5', npc: '#7bc47f', monster: '#c25a4a' }
-            const bgColors   = { player: '#1a3050', npc: '#1a3020', monster: '#301a1a' }
-            const ring = ringColors[char.type] || '#9a9790'
-            const bg   = bgColors[char.type]   || '#2a2e34'
+            const tc   = tokenColor(char)
+            const ring = tc.ring
+            const bg   = tc.bg
 
             // Key NPC gets a gold ring
             const ringColor = char.isKey ? '#c8a96e' : ring
@@ -248,7 +248,7 @@ export default function HexGrid() {
             ctx.fillStyle = bg
             ctx.fill()
             ctx.strokeStyle = ringColor
-            ctx.lineWidth = char.type === 'player' ? Math.max(2, tokenR * 0.2) : Math.max(1.5, tokenR * 0.15)
+            ctx.lineWidth = char.actorType === 'player' ? Math.max(2, tokenR * 0.2) : Math.max(1.5, tokenR * 0.15)
             ctx.stroke()
 
             if (tileR > 20) {
@@ -282,22 +282,16 @@ export default function HexGrid() {
                   ctx.fillStyle = ringColor
                   ctx.fillText((char.name || '?')[0].toUpperCase(), tx, ty)
                 }
-              } else if (char.emoji) {
+              } else {
                 ctx.font = `${tokenR * 1.05}px sans-serif`
                 ctx.textAlign = 'center'
                 ctx.textBaseline = 'middle'
-                ctx.fillText(char.emoji, tx, ty + tokenR * 0.05)
-              } else {
-                ctx.font = `600 ${Math.max(7, tokenR * 0.7)}px sans-serif`
-                ctx.textAlign = 'center'
-                ctx.textBaseline = 'middle'
-                ctx.fillStyle = ringColor
-                ctx.fillText((char.name || '?')[0].toUpperCase(), tx, ty)
+                ctx.fillText(tokenDisplay(char), tx, ty + tokenR * 0.05)
               }
             }
 
             // Name label below token (players always get name)
-            if (tileR > 28 && (char.type === 'player' || char.isKey)) {
+            if (tileR > 28 && (char.actorType === 'player' || char.isKey)) {
               const nameY = ty + tokenR + 2
               const nameFontSize = Math.max(7, Math.min(10, tileR * 0.17))
               ctx.font = `600 ${nameFontSize}px sans-serif`
@@ -306,7 +300,7 @@ export default function HexGrid() {
               const nw = ctx.measureText(char.name).width
               ctx.fillStyle = 'rgba(0,0,0,0.65)'
               ctx.fillRect(tx - nw/2 - 3, nameY, nw + 6, nameFontSize + 3)
-              ctx.fillStyle = char.type === 'player' ? '#5b9bd5' : '#c8a96e'
+              ctx.fillStyle = char.actorType === 'player' ? '#5b9bd5' : '#c8a96e'
               ctx.fillText(char.name, tx, nameY + 1)
             }
           })
@@ -332,7 +326,7 @@ export default function HexGrid() {
             const dotY = sy + tileR * 0.5
 
             // Color by dominant type
-            const hasMonster = dotTokens.some(c => c.type === 'monster')
+            const hasMonster = dotTokens.some(c => c.actorType === 'monster')
             const dotColor = hasMonster ? '#c25a4a' : '#c8a96e'
 
             ctx.beginPath()

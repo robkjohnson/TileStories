@@ -29,12 +29,25 @@ export default function EffectExecutor() {
       <div className={styles.resultsBar}>
         <span className={styles.resultsTitle}>Effect applied</span>
         <div className={styles.resultsList}>
-          {lastEffectResults.map(r => (
-            <span key={r.charId} className={styles.resultItem}>
-              <span className={styles.resultName}>{r.name}</span>
-              <span className={styles.resultDmg}>−{r.damage} HP → {r.newHp}</span>
-            </span>
-          ))}
+          {lastEffectResults.map(r => {
+            let detail
+            if (r.immune) {
+              detail = <span style={{ color: '#7bc47f', fontSize: 10 }}>🛡 Immune{r.damageType ? ` (${r.damageType})` : ''}</span>
+            } else if (r.saved && r.damage === 0) {
+              detail = <span style={{ color: '#5b9bd5', fontSize: 10 }}>✓ Saved ({r.saveResult?.total} vs DC {r.saveResult?.dc})</span>
+            } else {
+              const parts = [`−${r.damage} → ${r.newHp} HP`]
+              if (r.saveResult?.succeeded) parts.push('½ save')
+              if (r.damageType && r.damageType !== 'none') parts.push(r.damageType)
+              detail = <span className={styles.resultDmg}>{parts.join(' · ')}</span>
+            }
+            return (
+              <span key={r.actorId} className={styles.resultItem}>
+                <span className={styles.resultName}>{r.name}</span>
+                {detail}
+              </span>
+            )
+          })}
         </div>
         <button className={styles.resultsDismiss} onClick={clearEffectResults}>Dismiss</button>
       </div>
@@ -59,7 +72,7 @@ export default function EffectExecutor() {
     (effect.targetType === 'char_select' && selectedChars.length > 0) ||
     (effect.targetType !== 'char_select' && selectedTiles.length > 0)
 
-  const allChars = Object.values(campaign?.characters || {})
+  const allChars = Object.values(campaign?.actors || {})
     .filter(c => !c.hidden)
     .sort((a, b) => a.name.localeCompare(b.name))
 
@@ -125,7 +138,7 @@ export default function EffectExecutor() {
           )}
           {selectedChars.length > 0 && (
             <span>
-              {selectedChars.map(id => campaign?.characters?.[id]?.name || id).join(', ')}
+              {selectedChars.map(id => campaign?.actors?.[id]?.name || id).join(', ')}
             </span>
           )}
         </div>

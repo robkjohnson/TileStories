@@ -40,7 +40,7 @@ export default function LobbyManager({ session, campaign, playerUrl, send, onEnd
                 <span className={styles.playerName}>{p.name}</span>
                 <span className={styles.playerChar}>
                   {p.character?.name || 'No character'}
-                  {p.character?.type ? ` (${p.character.type})` : ''}
+                  {p.character?.actorType ? ` (${p.character.actorType})` : ''}
                 </span>
               </div>
               <div className={styles.playerStatus}>

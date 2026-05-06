@@ -59,14 +59,9 @@ function stripInlineImages(campaign) {
   return {
     ...campaign,
     coverImage: isRaw(campaign.coverImage) ? null : campaign.coverImage,
-    characters: Object.fromEntries(
-      Object.entries(campaign.characters || {}).map(([id, c]) => [
-        id, { ...c, portrait: isRaw(c.portrait) ? null : c.portrait }
-      ])
-    ),
-    creatures: Object.fromEntries(
-      Object.entries(campaign.creatures || {}).map(([id, c]) => [
-        id, { ...c, portrait: isRaw(c.portrait) ? null : c.portrait }
+    actors: Object.fromEntries(
+      Object.entries(campaign.actors || {}).map(([id, a]) => [
+        id, { ...a, portrait: isRaw(a.portrait) ? null : a.portrait }
       ])
     ),
     storyboards: Object.fromEntries(

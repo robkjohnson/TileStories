@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { useStore, makeAction } from '../../store/useStore'
+import { useStore, makeAction, getSystem } from '../../store/useStore'
 import { useDebouncedField } from '../../utils/useDebouncedStore'
 import { isValidDiceExpr } from '../../utils/dice'
 import AoePatternEditor from './AoePatternEditor'
@@ -122,6 +122,7 @@ function EffectEditor({ effect, campaign, deleteConfirm, onDelete, onCancelDelet
   }
 
   const statuses = Object.values(campaign?.statuses || {})
+  const system = getSystem(campaign?.gameSystemId)
 
   return (
     <div className={styles.editor}>
@@ -209,6 +210,7 @@ function EffectEditor({ effect, campaign, deleteConfirm, onDelete, onCancelDelet
             key={action.id}
             action={action}
             statuses={statuses}
+            system={system}
             onUpdate={partial => updateAction(action.id, partial)}
             onRemove={() => removeAction(action.id)}
           />
@@ -238,8 +240,10 @@ function EffectEditor({ effect, campaign, deleteConfirm, onDelete, onCancelDelet
 }
 
 // ── Action row ────────────────────────────────────────────────
-function ActionRow({ action, statuses, onUpdate, onRemove }) {
+function ActionRow({ action, statuses, system, onUpdate, onRemove }) {
   const [diceError, setDiceError] = useState(false)
+  const dmgTypes = (system?.damageTypes || []).filter(t => t !== 'none')
+  const saveStats = system?.savingThrowStats || []
 
   return (
     <div className={styles.actionRow}>
@@ -256,23 +260,73 @@ function ActionRow({ action, statuses, onUpdate, onRemove }) {
 
       {action.type === 'damage' && (
         <div className={styles.actionFields}>
-          <div className={styles.editorField}>
-            <label>Dice <span className={styles.subLabel}>(e.g. 2d6, d8+3)</span></label>
-            <input
-              type="text"
-              value={action.diceExpr || ''}
-              style={diceError ? { borderColor: '#c25a4a' } : {}}
-              onChange={e => {
-                setDiceError(e.target.value && !isValidDiceExpr(e.target.value))
-                onUpdate({ diceExpr: e.target.value })
-              }}
-              placeholder="2d6"
-            />
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <div className={styles.editorField}>
+              <label>Dice <span className={styles.subLabel}>(e.g. 2d6, d8+3)</span></label>
+              <input
+                type="text"
+                value={action.diceExpr || ''}
+                style={diceError ? { borderColor: '#c25a4a' } : {}}
+                onChange={e => {
+                  setDiceError(e.target.value && !isValidDiceExpr(e.target.value))
+                  onUpdate({ diceExpr: e.target.value })
+                }}
+                placeholder="2d6"
+              />
+            </div>
+            <div className={styles.editorField} style={{ maxWidth: 80 }}>
+              <label>Flat dmg</label>
+              <input type="number" value={action.flatAmount || 0}
+                onChange={e => onUpdate({ flatAmount: parseInt(e.target.value) || 0 })} />
+            </div>
+            {dmgTypes.length > 0 && (
+              <div className={styles.editorField}>
+                <label>Type</label>
+                <select value={action.damageType || ''} onChange={e => onUpdate({ damageType: e.target.value || null })}>
+                  <option value="">Untyped</option>
+                  {dmgTypes.map(t => (
+                    <option key={t} value={t} style={{ textTransform: 'capitalize' }}>{t}</option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
-          <div className={styles.editorField} style={{ maxWidth: 80 }}>
-            <label>Flat dmg</label>
-            <input type="number" value={action.flatAmount || 0}
-              onChange={e => onUpdate({ flatAmount: parseInt(e.target.value) || 0 })} />
+
+          {/* Saving throw */}
+          <div className={styles.editorField}>
+            <label>Saving throw</label>
+            <div className={styles.btnGroup}>
+              <button
+                className={`${styles.groupBtn} ${!action.save ? styles.groupBtnActive : ''}`}
+                onClick={() => onUpdate({ save: null })}
+              >None</button>
+              <button
+                className={`${styles.groupBtn} ${action.save ? styles.groupBtnActive : ''}`}
+                onClick={() => !action.save && onUpdate({ save: { stat: saveStats[0] || '', dc: 15, onSave: 'half' } })}
+              >Has save</button>
+            </div>
+            {action.save && (
+              <div style={{ display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                {saveStats.length > 0 ? (
+                  <select value={action.save.stat || ''} onChange={e => onUpdate({ save: { ...action.save, stat: e.target.value } })}>
+                    <option value="">— stat —</option>
+                    {saveStats.map(s => <option key={s} value={s}>{s.toUpperCase()}</option>)}
+                  </select>
+                ) : (
+                  <input type="text" placeholder="stat id" value={action.save.stat || ''}
+                    onChange={e => onUpdate({ save: { ...action.save, stat: e.target.value } })}
+                    style={{ width: 70 }} />
+                )}
+                <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>DC</span>
+                <input type="number" min={1} max={30} value={action.save.dc || 15}
+                  onChange={e => onUpdate({ save: { ...action.save, dc: parseInt(e.target.value) || 15 } })}
+                  style={{ width: 52 }} />
+                <select value={action.save.onSave || 'half'} onChange={e => onUpdate({ save: { ...action.save, onSave: e.target.value } })}>
+                  <option value="half">Half on save</option>
+                  <option value="none">No damage on save</option>
+                </select>
+              </div>
+            )}
           </div>
         </div>
       )}

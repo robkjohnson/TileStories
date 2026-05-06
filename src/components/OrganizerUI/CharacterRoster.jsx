@@ -1,237 +1,168 @@
 import React, { useState } from 'react'
-import { useStore } from '../../store/useStore'
+import { useStore, getSystem } from '../../store/useStore'
 import { tokenColor, tokenDisplay } from '../CharacterSheet/CharacterSheet'
 import { StatusPill } from '../EffectSystem/StatusLibrary'
 import { rollDice } from '../../utils/dice'
 import styles from './Sidebar.module.css'
 
-const CREATURE_TYPE_COLORS = {
-  pet: '#7bc47f', mount: '#c8a96e', companion: '#5b9bd5',
-  wild: '#9a9790', enemy: '#c25a4a',
-}
-
 export default function CharacterRoster({ onOpenEntity }) {
-  const { campaign, addCharacter, deleteCharacter, addCreature, deleteCreature, updateCharacter } = useStore()
-  const [filter, setFilter] = useState('players')
-  const [search, setSearch] = useState('')
-  const [deleteConfirm, setDeleteConfirm] = useState(null)  // { id, kind }
+  const { campaign, addActor, deleteActor, updateActor } = useStore()
+  const system = getSystem(campaign?.gameSystemId)
 
-  const allCharacters = Object.values(campaign?.characters || {})
-  const allCreatures  = Object.values(campaign?.creatures  || {})
+  // Derive three groups from the system definition:
+  //   players   — isPlayer: true
+  //   characters — showInRoster: true, not isPlayer (npcs, villains, allies, etc.)
+  //   creatures  — showInRoster: false (pets, mounts, wild, etc.)
+  const playerTypes    = system.actorTypes.filter(t => t.isPlayer)
+  const characterTypes = system.actorTypes.filter(t => !t.isPlayer && t.showInRoster)
+  const creatureTypes  = system.actorTypes.filter(t => !t.showInRoster)
 
-  const playerChars  = allCharacters.filter(c => c.type === 'player')
-  const npcChars     = allCharacters.filter(c => c.type === 'npc')
-  const monsterChars = allCharacters.filter(c => c.type === 'monster')
+  const allActors = Object.values(campaign?.actors || {})
+  const counts = {
+    players:    allActors.filter(a => playerTypes.some(t => t.id === a.actorType)).length,
+    characters: allActors.filter(a => characterTypes.some(t => t.id === a.actorType)).length,
+    creatures:  allActors.filter(a => creatureTypes.some(t => t.id === a.actorType)).length,
+  }
 
-  const matchesSearch = (name) =>
-    !search || name?.toLowerCase().includes(search.toLowerCase())
+  const [filter, setFilter]             = useState('players')
+  const [search, setSearch]             = useState('')
+  const [deleteConfirm, setDeleteConfirm] = useState(null)
+  const [collapsed, setCollapsed]       = useState(new Set())
 
-  function handleDeleteChar(id, e) {
+  function toggleGroup(id) {
+    setCollapsed(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n })
+  }
+
+  function matchesSearch(name) {
+    return !search || name?.toLowerCase().includes(search.toLowerCase())
+  }
+
+  function handleAdd(actorType) {
+    const typeDef = system.actorTypes.find(t => t.id === actorType)
+    const id = addActor({ actorType, name: `New ${typeDef?.label ?? actorType}` })
+    const sheetKind = typeDef?.showInRoster === false ? 'creature' : 'character'
+    onOpenEntity(sheetKind, id)
+  }
+
+  function handleDelete(id, e) {
     e.stopPropagation()
-    if (deleteConfirm?.id === id) {
-      deleteCharacter(id)
-      setDeleteConfirm(null)
-    } else {
-      setDeleteConfirm({ id, kind: 'character' })
-    }
+    if (deleteConfirm === id) { deleteActor(id); setDeleteConfirm(null) }
+    else setDeleteConfirm(id)
   }
 
-  function handleDeleteCreature(id, e) {
-    e.stopPropagation()
-    if (deleteConfirm?.id === id) {
-      deleteCreature(id)
-      setDeleteConfirm(null)
-    } else {
-      setDeleteConfirm({ id, kind: 'creature' })
-    }
+  function openActor(actor) {
+    const typeDef = system.actorTypes.find(t => t.id === actor.actorType)
+    const kind = typeDef?.showInRoster === false ? 'creature' : 'character'
+    onOpenEntity(kind, actor.id)
   }
 
-  function handleAddCharacter(type) {
-    const names = { player: 'New Player', npc: 'New NPC', monster: 'New Monster' }
-    const id = addCharacter({ name: names[type] || 'New Character', type })
-    onOpenEntity('character', id)
-  }
+  // Which actorTypes are shown for the current filter tab
+  const visibleTypes = filter === 'players'
+    ? playerTypes
+    : filter === 'characters'
+    ? characterTypes
+    : creatureTypes
 
-  function handleAddCreature(type) {
-    const id = addCreature({ type: type || 'wild' })
-    onOpenEntity('creature', id)
-  }
+  const visibleActors = allActors
+    .filter(a => visibleTypes.some(t => t.id === a.actorType) && matchesSearch(a.name))
+    .sort((a, b) => a.name.localeCompare(b.name))
 
-  function getLocation(entity, isCreature = false) {
-    const mapId = entity.currentMapId
-    if (!mapId) return null
-    const map = campaign?.maps?.[mapId]
-    if (!map) return null
-    const tile = entity.currentTile
-    return tile ? `${map.name} (${tile.q},${tile.r})` : map.name
-  }
+  // Group visible actors by actorType for section headers
+  const grouped = visibleTypes.map(typeDef => ({
+    typeDef,
+    actors: visibleActors.filter(a => a.actorType === typeDef.id),
+  }))
+
+  const tabs = [
+    playerTypes.length    > 0 && { id: 'players',    label: `Players (${counts.players})` },
+    characterTypes.length > 0 && { id: 'characters',  label: `Characters (${counts.characters})` },
+    creatureTypes.length  > 0 && { id: 'creatures',   label: `Creatures (${counts.creatures})` },
+  ].filter(Boolean)
 
   return (
     <>
-      {/* Search */}
       <div className={styles.section}>
-        <input className={styles.searchInput} type="text" placeholder="Search…"
+        <input className={styles.searchInput} type="text" placeholder="Search actors…"
           value={search} onChange={e => setSearch(e.target.value)} />
-
-        {/* Filter tabs */}
         <div className={styles.filterRow}>
-          {[
-            ['players',   `Players (${playerChars.length})`],
-            ['npcs',      `NPCs (${npcChars.length})`],
-            ['monsters',  `Monsters (${monsterChars.length})`],
-            ['creatures', `Creatures (${allCreatures.length})`],
-          ].map(([id, label]) => (
-            <button key={id}
-              className={`${styles.filterBtn} ${filter === id ? styles.filterBtnActive : ''}`}
-              onClick={() => setFilter(id)}>{label}</button>
+          {tabs.map(t => (
+            <button key={t.id}
+              className={`${styles.filterBtn} ${filter === t.id ? styles.filterBtnActive : ''}`}
+              onClick={() => setFilter(t.id)}>{t.label}</button>
           ))}
         </div>
       </div>
 
-      {/* ── Players section ── */}
-      {filter === 'players' && (
-        <>
-          <div className={styles.rosterSectionHeader}>
-            <span className={styles.rosterSectionTitle}>
-              <span className={styles.rosterSectionDot} style={{ background: '#5b9bd5' }} />
-              Player characters
-            </span>
-            <button className={styles.addSmallBtn} onClick={() => handleAddCharacter('player')}>+ Add</button>
-          </div>
-
-          {playerChars.length === 0 && (
-            <div className={styles.rosterEmpty}>
-              No player characters yet.{'\n'}Players create characters when they join a session.
-            </div>
-          )}
-
-          {playerChars.filter(c => matchesSearch(c.name)).map(char => (
-            <CharacterCard
-              key={char.id}
-              char={char}
-              campaign={campaign}
-              onOpen={() => onOpenEntity('character', char.id)}
-              onDelete={e => handleDeleteChar(char.id, e)}
-              deleteConfirm={deleteConfirm?.id === char.id}
-              onCancelDelete={e => { e.stopPropagation(); setDeleteConfirm(null) }}
-              isPlayerJoined={!!char.addedByPlayer}
-              updateCharacter={updateCharacter}
-            />
-          ))}
-        </>
-      )}
-
-      {/* ── NPCs section ── */}
-      {filter === 'npcs' && (
-        <>
-          <div className={styles.rosterSectionHeader}>
-            <span className={styles.rosterSectionTitle}>
-              <span className={styles.rosterSectionDot} style={{ background: '#5b9bd5' }} />
-              NPCs
-            </span>
-            <button className={styles.addSmallBtn} onClick={() => handleAddCharacter('npc')}>+ Add</button>
-          </div>
-
-          {npcChars.length === 0 && (
-            <div className={styles.rosterEmpty}>No NPCs yet.</div>
-          )}
-
-          {npcChars.filter(c => matchesSearch(c.name)).map(char => (
-            <CharacterCard
-              key={char.id}
-              char={char}
-              campaign={campaign}
-              onOpen={() => onOpenEntity('character', char.id)}
-              onDelete={e => handleDeleteChar(char.id, e)}
-              deleteConfirm={deleteConfirm?.id === char.id}
-              onCancelDelete={e => { e.stopPropagation(); setDeleteConfirm(null) }}
-              isPlayerJoined={false}
-              updateCharacter={updateCharacter}
-            />
-          ))}
-        </>
-      )}
-
-      {/* ── Monsters section ── */}
-      {filter === 'monsters' && (
-        <>
-          <div className={styles.rosterSectionHeader}>
-            <span className={styles.rosterSectionTitle}>
-              <span className={styles.rosterSectionDot} style={{ background: '#c25a4a' }} />
-              Monsters
-            </span>
-            <button className={styles.addSmallBtn} onClick={() => handleAddCharacter('monster')}>+ Add</button>
-          </div>
-
-          {monsterChars.length === 0 && (
-            <div className={styles.rosterEmpty}>No monsters yet.</div>
-          )}
-
-          {monsterChars.filter(c => matchesSearch(c.name)).map(char => (
-            <CharacterCard
-              key={char.id}
-              char={char}
-              campaign={campaign}
-              onOpen={() => onOpenEntity('character', char.id)}
-              onDelete={e => handleDeleteChar(char.id, e)}
-              deleteConfirm={deleteConfirm?.id === char.id}
-              onCancelDelete={e => { e.stopPropagation(); setDeleteConfirm(null) }}
-              isPlayerJoined={false}
-              updateCharacter={updateCharacter}
-            />
-          ))}
-        </>
-      )}
-
-      {/* ── Creatures section ── */}
-      {filter === 'creatures' && (
-        <>
-          <div className={styles.rosterSectionHeader}>
-            <span className={styles.rosterSectionTitle}>
-              <span className={styles.rosterSectionDot} style={{ background: '#c8a96e' }} />
-              Creatures
-            </span>
-            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-              {['pet','wild','enemy'].map(type => (
-                <button key={type} className={styles.addSmallBtn}
-                  onClick={() => handleAddCreature(type)}>
-                  + {type}
+      {grouped.map(({ typeDef, actors: typeActors }) => {
+        const colors = tokenColor({ actorType: typeDef.id }, system)
+        const isCollapsed = collapsed.has(typeDef.id)
+        return (
+          <React.Fragment key={typeDef.id}>
+            <div className={styles.rosterSectionHeader} onClick={() => toggleGroup(typeDef.id)}
+              style={{ cursor: 'pointer', userSelect: 'none' }}>
+              <span className={styles.rosterSectionTitle}>
+                <span className={styles.rosterSectionDot} style={{ background: colors.ring }} />
+                {typeDef.icon} {typeDef.label}
+                <span style={{ fontSize: 10, color: 'var(--text-muted)', marginLeft: 4 }}>
+                  ({typeActors.length})
+                </span>
+              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <button className={styles.addSmallBtn}
+                  onClick={e => { e.stopPropagation(); handleAdd(typeDef.id) }}>
+                  + Add
                 </button>
-              ))}
+                <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>{isCollapsed ? '▶' : '▼'}</span>
+              </div>
             </div>
-          </div>
 
-          {allCreatures.length === 0 && (
-            <div className={styles.rosterEmpty}>No creatures yet. Add pets, wild animals, or enemies.</div>
-          )}
+            {!isCollapsed && typeActors.length === 0 && (
+              <div className={styles.rosterEmpty}>No {typeDef.label.toLowerCase()} yet.</div>
+            )}
 
-          {allCreatures.filter(c => matchesSearch(c.name)).map(creature => (
-            <CreatureCard
-              key={creature.id}
-              creature={creature}
-              campaign={campaign}
-              onOpen={() => onOpenEntity('creature', creature.id)}
-              onDelete={e => handleDeleteCreature(creature.id, e)}
-              deleteConfirm={deleteConfirm?.id === creature.id}
-              onCancelDelete={e => { e.stopPropagation(); setDeleteConfirm(null) }}
-            />
-          ))}
-        </>
-      )}
+            {!isCollapsed && typeActors.map(actor => (
+              <ActorCard
+                key={actor.id}
+                actor={actor}
+                typeDef={typeDef}
+                campaign={campaign}
+                system={system}
+                onOpen={() => openActor(actor)}
+                onDelete={e => handleDelete(actor.id, e)}
+                deleteConfirm={deleteConfirm === actor.id}
+                onCancelDelete={e => { e.stopPropagation(); setDeleteConfirm(null) }}
+                updateActor={updateActor}
+              />
+            ))}
+          </React.Fragment>
+        )
+      })}
     </>
   )
 }
 
-// ── Character card ─────────────────────────────────────────────
-function CharacterCard({ char, campaign, onOpen, onDelete, deleteConfirm, onCancelDelete, isPlayerJoined, updateCharacter }) {
-  const colors = tokenColor(char)
-  const loc = getEntityLocation(char, campaign)
-  const isPlayer = char.type === 'player'
+// ── Actor card ────────────────────────────────────────────────
+function ActorCard({ actor, typeDef, campaign, system, onOpen, onDelete, deleteConfirm, onCancelDelete, updateActor }) {
+  const colors = tokenColor(actor, system)
+  const loc = getLocation(actor, campaign)
+  const owner = actor.ownedBy ? campaign?.actors?.[actor.ownedBy] : null
+  const isPlayer = typeDef?.isPlayer
+
+  function adjustHp(delta) {
+    const cur = actor.stats?.hp ?? 0
+    const max = actor.stats?.maxHp ?? 999
+    updateActor(actor.id, { stats: { ...actor.stats, hp: Math.max(0, Math.min(max, cur + delta)) } })
+  }
 
   function adjustCurrency(delta) {
-    const cur = char.currency ?? 0
-    updateCharacter(char.id, { currency: Math.max(0, cur + delta) })
+    const hpStat = system.hpStat || 'hp'
+    const cur = actor.currency?.[system.currencies?.[0]?.id ?? 'gp'] ?? 0
+    const cid = system.currencies?.[0]?.id ?? 'gp'
+    updateActor(actor.id, { currency: { ...actor.currency, [cid]: Math.max(0, cur + delta) } })
   }
+
+  const primaryCurrency = system.currencies?.[0]
+  const currencyVal = primaryCurrency ? (actor.currency?.[primaryCurrency.id] ?? 0) : null
 
   return (
     <div className={styles.rosterCard} style={{ borderLeftColor: colors.ring }} onClick={onOpen}>
@@ -254,88 +185,94 @@ function CharacterCard({ char, campaign, onOpen, onDelete, deleteConfirm, onCanc
           ctx.font = `${Math.round(size * 0.48)}px sans-serif`
           ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
           ctx.fillStyle = colors.ring
-          ctx.fillText(tokenDisplay(char), size / 2, size / 2 + 1)
+          ctx.fillText(tokenDisplay(actor, system), size / 2, size / 2 + 1)
           document.body.appendChild(cv)
           e.dataTransfer.setDragImage(cv, size / 2, size / 2)
           setTimeout(() => document.body.removeChild(cv), 0)
-          e.dataTransfer.setData('application/tilestories-entity', JSON.stringify({ id: char.id, kind: 'character' }))
+          e.dataTransfer.setData('application/tilestories-entity', JSON.stringify({ id: actor.id, kind: typeDef?.showInRoster === false ? 'creature' : 'character' }))
           e.dataTransfer.effectAllowed = 'copy'
         }}
       >
-        {char.portrait
-          ? <img src={char.portrait} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%', pointerEvents: 'none' }} />
-          : <span style={{ fontSize: 18, pointerEvents: 'none' }}>{tokenDisplay(char)}</span>
+        {actor.portrait
+          ? <img src={actor.portrait} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%', pointerEvents: 'none' }} />
+          : <span style={{ fontSize: 18, pointerEvents: 'none' }}>{tokenDisplay(actor, system)}</span>
         }
       </div>
 
       {/* Info */}
       <div className={styles.rosterInfo}>
         <div className={styles.rosterNameRow}>
-          <span className={styles.rosterName}>{char.name}</span>
-          {isPlayerJoined && (
-            <span className={styles.playerBadge} title="Joined via player device">🎮</span>
-          )}
+          <span className={styles.rosterName}>{actor.name}</span>
+          {actor.addedByPlayer && <span className={styles.playerBadge} title="Joined via player device">🎮</span>}
         </div>
         <div className={styles.rosterMeta} style={{ color: colors.ring }}>
-          {char.type}{isPlayerJoined && ' · Player'}
+          {typeDef?.label ?? actor.actorType}
+          {actor.species ? ` · ${actor.species}` : ''}
         </div>
-        {loc && <div className={styles.rosterLoc}>📍 {loc}</div>}
+        {owner && <div className={styles.rosterLoc}>👤 {owner.name}</div>}
+        {loc  && <div className={styles.rosterLoc}>📍 {loc}</div>}
+
         {/* Status pills */}
-        {(char.activeStatuses || []).length > 0 && (
+        {(actor.activeStatuses || []).length > 0 && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3, marginTop: 3 }} onClick={e => e.stopPropagation()}>
-            {(char.activeStatuses || []).slice(0, 3).map(({ statusId }) => (
+            {(actor.activeStatuses || []).slice(0, 3).map(({ statusId }) => (
               <StatusPill key={statusId} statusId={statusId} campaign={campaign} />
             ))}
-            {(char.activeStatuses || []).length > 3 && (
+            {(actor.activeStatuses || []).length > 3 && (
               <span style={{ fontSize: 10, color: 'var(--text-muted)', alignSelf: 'center' }}>
-                +{(char.activeStatuses || []).length - 3} more
+                +{(actor.activeStatuses || []).length - 3}
               </span>
             )}
           </div>
         )}
-        {/* Currency — shown inline for player characters */}
-        {isPlayer && (
+
+        {/* Currency for player-type actors */}
+        {isPlayer && primaryCurrency && (
           <div className={styles.currencyRow} onClick={e => e.stopPropagation()}>
-            <span className={styles.currencyIcon}>$</span>
+            <span className={styles.currencyIcon}>{primaryCurrency.shortLabel}</span>
             <button className={styles.hpBtn} onClick={() => adjustCurrency(-1)}>−</button>
             <input
               className={styles.currencyInput}
-              type="number"
-              min={0}
-              value={char.currency ?? 0}
-              onChange={e => updateCharacter(char.id, { currency: Math.max(0, parseFloat(e.target.value) || 0) })}
+              type="number" min={0}
+              value={currencyVal}
+              onChange={e => {
+                const cid = primaryCurrency.id
+                updateActor(actor.id, { currency: { ...actor.currency, [cid]: Math.max(0, parseFloat(e.target.value) || 0) } })
+              }}
             />
             <button className={styles.hpBtn} onClick={() => adjustCurrency(1)}>+</button>
           </div>
         )}
       </div>
 
-      {/* Right side: HP + roll + delete */}
+      {/* Right: HP + dice + delete */}
       <div className={styles.rosterActions} onClick={e => e.stopPropagation()}>
         <div className={styles.hpQuick}>
           <div className={styles.hpLabel}>HP</div>
           <div className={styles.hpRow}>
-            <button className={styles.hpBtn}
-              onClick={() => updateCharacter(char.id, { stats: { ...char.stats, hp: Math.max(0, (char.stats?.hp || 0) - 1) } })}>−</button>
-            <span className={styles.hpVal}>{char.stats?.hp ?? '?'}</span>
-            <button className={styles.hpBtn}
-              onClick={() => updateCharacter(char.id, { stats: { ...char.stats, hp: Math.min(char.stats?.maxHp || 999, (char.stats?.hp || 0) + 1) } })}>+</button>
+            <button className={styles.hpBtn} onClick={() => adjustHp(-1)}>−</button>
+            <span className={styles.hpVal}>{actor.stats?.hp ?? '?'}</span>
+            <button className={styles.hpBtn} onClick={() => adjustHp(1)}>+</button>
           </div>
         </div>
-        <button
-          className={styles.rosterDiceBtn}
-          title="Roll D20"
-          onClick={() => {
-            const value = rollDice('d20')
-            window.__tilestoriesSend?.({
-              type: 'DICE_ROLL',
-              characterId: char.id,
-              characterName: char.name,
-              diceType: 'd20',
-              value,
-            })
-          }}
-        >🎲</button>
+
+        {isPlayer && (
+          <button
+            className={styles.rosterDiceBtn}
+            title="Roll D20"
+            onClick={() => {
+              const value = rollDice('d20')
+              window.__tilestoriesSend?.({
+                type: 'DICE_ROLL',
+                characterId: actor.id,
+                characterName: actor.name,
+                diceType: 'd20',
+                value,
+              })
+            }}
+          >🎲</button>
+        )}
+
         {deleteConfirm
           ? <div className={styles.deleteConfirmInline}>
               <button className={styles.deleteYesBtn} onClick={onDelete}>✓</button>
@@ -348,83 +285,11 @@ function CharacterCard({ char, campaign, onOpen, onDelete, deleteConfirm, onCanc
   )
 }
 
-// ── Creature card ──────────────────────────────────────────────
-function CreatureCard({ creature, campaign, onOpen, onDelete, deleteConfirm, onCancelDelete }) {
-  const color = CREATURE_TYPE_COLORS[creature.type] || '#9a9790'
-  const loc = getEntityLocation(creature, campaign)
-  const owner = creature.ownedBy ? campaign?.characters?.[creature.ownedBy] : null
-
-  return (
-    <div className={styles.rosterCard} style={{ borderLeftColor: color }} onClick={onOpen}>
-      <div
-        className={styles.rosterAvatar}
-        style={{ background: color + '22', borderColor: color, cursor: 'grab' }}
-        draggable
-        onDragStart={e => {
-          e.stopPropagation()
-          const size = 44
-          const cv = document.createElement('canvas')
-          cv.width = cv.height = size
-          cv.style.cssText = 'position:fixed;top:-300px;pointer-events:none'
-          const ctx = cv.getContext('2d')
-          ctx.beginPath()
-          ctx.arc(size / 2, size / 2, size / 2 - 2, 0, Math.PI * 2)
-          ctx.fillStyle = color + '22'; ctx.fill()
-          ctx.strokeStyle = color; ctx.lineWidth = 3; ctx.stroke()
-          ctx.font = `${Math.round(size * 0.48)}px sans-serif`
-          ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
-          ctx.fillText(creature.emoji || '🐾', size / 2, size / 2 + 1)
-          document.body.appendChild(cv)
-          e.dataTransfer.setDragImage(cv, size / 2, size / 2)
-          setTimeout(() => document.body.removeChild(cv), 0)
-          e.dataTransfer.setData('application/tilestories-entity', JSON.stringify({ id: creature.id, kind: 'creature' }))
-          e.dataTransfer.effectAllowed = 'copy'
-        }}
-      >
-        <span style={{ fontSize: 18, pointerEvents: 'none' }}>{creature.emoji || '🐾'}</span>
-      </div>
-
-      <div className={styles.rosterInfo}>
-        <div className={styles.rosterName}>{creature.name}</div>
-        <div className={styles.rosterMeta} style={{ color }}>
-          {creature.type}{creature.species ? ` · ${creature.species}` : ''}
-        </div>
-        {owner && <div className={styles.rosterLoc}>👤 {owner.name}</div>}
-        {loc && <div className={styles.rosterLoc}>📍 {loc}</div>}
-      </div>
-
-      <div className={styles.rosterActions} onClick={e => e.stopPropagation()}>
-        <div className={styles.hpQuick}>
-          <div className={styles.hpLabel}>HP</div>
-          <div className={styles.hpRow}>
-            <button className={styles.hpBtn}
-              onClick={() => useStore.getState().updateCreature(creature.id, {
-                statBlock: { ...creature.statBlock, hp: Math.max(0, (creature.statBlock?.hp || 0) - 1) }
-              })}>−</button>
-            <span className={styles.hpVal}>{creature.statBlock?.hp ?? '?'}</span>
-            <button className={styles.hpBtn}
-              onClick={() => useStore.getState().updateCreature(creature.id, {
-                statBlock: { ...creature.statBlock, hp: Math.min(creature.statBlock?.maxHp || 999, (creature.statBlock?.hp || 0) + 1) }
-              })}>+</button>
-          </div>
-        </div>
-        {deleteConfirm
-          ? <div className={styles.deleteConfirmInline}>
-              <button className={styles.deleteYesBtn} onClick={onDelete}>✓</button>
-              <button className={styles.deleteNoBtn} onClick={onCancelDelete}>✕</button>
-            </div>
-          : <button className={styles.deleteInlineBtn} onClick={onDelete} title="Delete">🗑</button>
-        }
-      </div>
-    </div>
-  )
-}
-
-function getEntityLocation(entity, campaign) {
-  if (!entity.currentMapId) return null
-  const map = campaign?.maps?.[entity.currentMapId]
+function getLocation(actor, campaign) {
+  if (!actor.currentMapId) return null
+  const map = campaign?.maps?.[actor.currentMapId]
   if (!map) return null
-  return entity.currentTile
-    ? `${map.name} (${entity.currentTile.q},${entity.currentTile.r})`
+  return actor.currentTile
+    ? `${map.name} (${actor.currentTile.q},${actor.currentTile.r})`
     : map.name
 }
