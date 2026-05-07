@@ -11,6 +11,12 @@ All campaign data lives in a single JSON document exported as `.tilestories.json
   name:          string
   description:   string
   gameSystemId:  string        // e.g. 'dnd5e' | 'generic' — see docs/game-systems.md
+
+  // Per-campaign game rule overrides (null = use base system defaults)
+  customActorTypes:  ActorType[] | null    // replaces system.actorTypes when set
+  customDamageTypes: string[] | null       // replaces system.damageTypes when set
+  customStats:       StatDefinition[] | null  // replaces system.stats when set
+
   settings: {
     defaultBiome: string       // tile type key used for unpainted tiles
     defaultCols:  number
@@ -128,14 +134,24 @@ Replaces the old split between `characters` and `creatures`. Every token on ever
 
 ```typescript
 {
-  id:           string
-  name:         string
-  description:  string
-  cols:         number
-  rows:         number
-  defaultBiome: string     // tile type key
-  parentMapId:  string | null
-  tileStyle:    'hex' | 'square'
+  id:             string
+  name:           string
+  description:    string
+  tab:            string        // organizer-defined group label (e.g. "World", "Dungeons"); '' = ungrouped
+  cols:           number
+  rows:           number
+  defaultBiome:   string        // tile type key
+  parentMapId:    string | null
+  tileStyle:      'hex' | 'square'
+
+  // Background image — rendered behind the tile grid
+  backgroundImage: string | null  // base64 data URL
+  bgImgWidth:      number | null  // natural pixel width (for aspect ratio)
+  bgImgHeight:     number | null  // natural pixel height
+  bgCols:          number | null  // how many tile-columns the image spans (null = map.cols)
+  bgOffsetX:       number         // horizontal shift in tile units (can be fractional)
+  bgOffsetY:       number         // vertical shift in tile units (can be fractional)
+
   tiles:        { ['q,r']: Tile }
   firedEvents:  { ['q,r']: FiredEventOverlay }
   eventLog:     EventLogEntry[]
@@ -180,7 +196,9 @@ Replaces the old split between `characters` and `creatures`. Every token on ever
   walkable:          boolean
   traits:            string[] // trait tags applied to actors on this tile
   statusEffects:     string[] // status IDs auto-applied to this tile type
-  displayBackground: string | null  // base64 background image
+  displayBackground: string | null  // base64 background image shown on the tile
+  overlay:           boolean        // true = tile color is blended over displayBackground
+  overlayOpacity:    number         // 0–1, controls blend strength when overlay is true
   createdAt:         ISO string
 }
 ```
@@ -360,7 +378,11 @@ Replaces the old split between `characters` and `creatures`. Every token on ever
   }[]
   textBlocks: {
     id: string, text: string, x, y, fontSize: number,
-    color: string, bold: boolean, align: 'left'|'center'|'right'
+    color: string, bold: boolean, italic: boolean,
+    align: 'left'|'center'|'right',
+    opacity: number,        // 0–1
+    maxWidth: number,       // % of canvas width (0 = unconstrained)
+    rotation: number        // degrees
   }[]
   createdAt: ISO string
 }

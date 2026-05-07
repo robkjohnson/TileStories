@@ -80,9 +80,28 @@ export default function StoryboardEditor() {
 // ── Canvas editor ─────────────────────────────────────────────
 function StoryboardCanvas({ storyboard: sb, onUpdate, onClose, onBroadcast }) {
   const canvasRef = useRef(null)
+  const wrapRef   = useRef(null)
   const [selectedLayer, setSelectedLayer] = useState(null)
   const [interaction, setInteraction] = useState(null)
+  const [displaySize, setDisplaySize] = useState(null)
   const wasDragging = useRef(false)
+
+  useEffect(() => {
+    const wrap = wrapRef.current
+    if (!wrap) return
+    const obs = new ResizeObserver(entries => {
+      const { width: availW, height: availH } = entries[0].contentRect
+      if (availW <= 0 || availH <= 0) return
+      const wIfFullHeight = availH * 16 / 9
+      if (wIfFullHeight <= availW) {
+        setDisplaySize({ w: Math.round(wIfFullHeight), h: Math.round(availH) })
+      } else {
+        setDisplaySize({ w: Math.round(availW), h: Math.round(availW * 9 / 16) })
+      }
+    })
+    obs.observe(wrap)
+    return () => obs.disconnect()
+  }, [])
 
   const CANVAS_W = 1280
   const CANVAS_H = 720
@@ -344,14 +363,16 @@ function StoryboardCanvas({ storyboard: sb, onUpdate, onClose, onBroadcast }) {
         </div>
 
         {/* Canvas */}
-        <div className={styles.canvasWrap}>
+        <div ref={wrapRef} className={styles.canvasWrap}>
           <div
             ref={canvasRef}
             className={styles.canvas}
             style={{
               backgroundColor: sb.backgroundColor || '#1a1c1e',
-              aspectRatio: '16/9',
               containerType: 'size',
+              ...(displaySize
+                ? { width: displaySize.w, height: displaySize.h }
+                : { aspectRatio: '16/9', width: '100%', maxHeight: '100%' }),
             }}
             onMouseMove={onCanvasMouseMove}
             onMouseUp={onCanvasMouseUp}
@@ -360,7 +381,7 @@ function StoryboardCanvas({ storyboard: sb, onUpdate, onClose, onBroadcast }) {
 
             {sb.backgroundImage && (
               <ResolvedImg src={sb.backgroundImage}
-                style={{ position:'absolute', top:0, left:0, right:0, bottom:0, objectFit:'cover', pointerEvents:'none', zIndex:0 }} />
+                style={{ position:'absolute', inset:0, width:'100%', height:'100%', objectFit:'cover', pointerEvents:'none', zIndex:0 }} />
             )}
 
             {/* Image layers */}

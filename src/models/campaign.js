@@ -31,10 +31,11 @@ export function makeCampaign(gameSystemId = 'dnd5e', overrides = {}) {
     // via getCampaignSystem(campaign).
     gameSystemId,
 
-    // ── Custom game rules (Generic system only) ───────────────────
-    // null = use system defaults. Set when organizer edits via Custom Game Rules UI.
+    // ── Custom game rules ─────────────────────────────────────────
+    // null = use system defaults. Set when organizer edits via Game Rules UI.
     customActorTypes:  null,
     customDamageTypes: null,
+    customStats:       null,
 
     // ── Campaign settings ─────────────────────────────────────────
     settings: {

@@ -3,7 +3,7 @@ import { useStore } from '../../store/useStore'
 import { useSessionStore } from '../../store/useSessionStore'
 import styles from './Sidebar.module.css'
 import TurnTracker from '../TurnTracker/TurnTracker'
-import { rollDice } from '../../utils/dice'
+import { rollDice, DICE_TYPES } from '../../utils/dice'
 
 export default function SessionControls() {
   const { campaign, displayLabelSize, setDisplayLabelSize } = useStore()
@@ -191,9 +191,18 @@ export default function SessionControls() {
 // ── Dice section ─────────────────────────────────────────────
 function DiceSection({ diceRolls, players, campaign, send }) {
   const [showRequestForm, setShowRequestForm] = useState(false)
+  const [showRollForm, setShowRollForm] = useState(false)
+
+  // Player roll request state
   const [selectedPlayers, setSelectedPlayers] = useState(new Set())
   const [threshold, setThreshold] = useState('')
   const [requestDescription, setRequestDescription] = useState('')
+
+  // Organizer roll state
+  const [rollDiceType, setRollDiceType] = useState('d20')
+  const [rollName, setRollName] = useState('')
+  const [rollDescription, setRollDescription] = useState('')
+  const [rollThreshold, setRollThreshold] = useState('')
 
   function togglePlayer(deviceId) {
     setSelectedPlayers(prev => {
@@ -201,6 +210,22 @@ function DiceSection({ diceRolls, players, campaign, send }) {
       next.has(deviceId) ? next.delete(deviceId) : next.add(deviceId)
       return next
     })
+  }
+
+  function handleOrganizerRoll() {
+    const value = rollDice(rollDiceType)
+    send({
+      type: 'DICE_ROLL',
+      characterName: rollName.trim() || 'Organizer',
+      diceType: rollDiceType,
+      value,
+      description: rollDescription.trim() || null,
+      threshold: rollThreshold ? parseInt(rollThreshold) : null,
+    })
+    setShowRollForm(false)
+    setRollName('')
+    setRollDescription('')
+    setRollThreshold('')
   }
 
   function handleSendRequest() {
@@ -252,6 +277,9 @@ function DiceSection({ diceRolls, players, campaign, send }) {
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {roll.characterName}
+                {roll.rolledBy === 'organizer' && (
+                  <span style={{ fontSize: 9, color: 'var(--text-muted)', marginLeft: 4, fontStyle: 'normal' }}>DM</span>
+                )}
               </div>
               {roll.description && (
                 <div style={{ fontSize: 10, color: 'var(--text-muted)', fontStyle: 'italic', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -271,12 +299,78 @@ function DiceSection({ diceRolls, players, campaign, send }) {
         )
       })}
 
-      {/* Send roll request */}
-      {!showRequestForm ? (
-        <button className={styles.addEntryBtn} onClick={() => setShowRequestForm(true)}>
-          + Send roll request
-        </button>
-      ) : (
+      {/* Both forms closed — show action buttons */}
+      {!showRollForm && !showRequestForm && (
+        <>
+          <button className={styles.addEntryBtn} onClick={() => setShowRollForm(true)}>
+            🎲 Roll dice
+          </button>
+          <button className={styles.addEntryBtn} style={{ marginTop: 4 }} onClick={() => setShowRequestForm(true)}>
+            + Send roll request to players
+          </button>
+        </>
+      )}
+
+      {/* Organizer roll form */}
+      {showRollForm && (
+        <div className={styles.cutsceneFormFull}>
+          <div className={styles.sectionLabel}>Die</div>
+          <div className={styles.csTypeRow}>
+            {Object.keys(DICE_TYPES).map(die => (
+              <button
+                key={die}
+                className={`${styles.csTypeBtn} ${rollDiceType === die ? styles.csTypeBtnActive : ''}`}
+                onClick={() => setRollDiceType(die)}
+              >
+                {die.toUpperCase()}
+              </button>
+            ))}
+          </div>
+
+          <div className={styles.sectionLabel} style={{ marginTop: 4 }}>Name</div>
+          <input
+            type="text"
+            placeholder="e.g. Goblin Chief, Environment…"
+            value={rollName}
+            onChange={e => setRollName(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleOrganizerRoll()}
+            autoFocus
+          />
+
+          <div className={styles.sectionLabel} style={{ marginTop: 4 }}>Description — optional</div>
+          <input
+            type="text"
+            placeholder="e.g. Attack roll, Perception…"
+            value={rollDescription}
+            onChange={e => setRollDescription(e.target.value)}
+          />
+
+          <div className={styles.sectionLabel} style={{ marginTop: 4 }}>DC — optional</div>
+          <input
+            type="number"
+            min={1} max={30}
+            placeholder="e.g. 15"
+            value={rollThreshold}
+            onChange={e => setRollThreshold(e.target.value)}
+          />
+
+          <div className={styles.actionRow}>
+            <button className={styles.cancelBtn} onClick={() => {
+              setShowRollForm(false)
+              setRollDiceType('d20')
+              setRollName('')
+              setRollDescription('')
+              setRollThreshold('')
+            }}>Cancel</button>
+            <button className={styles.primaryBtn} onClick={handleOrganizerRoll} style={{ flex: 1 }}>
+              🎲 Roll {rollDiceType.toUpperCase()}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Player roll request form */}
+      {showRequestForm && (
         <div className={styles.cutsceneFormFull}>
           <div className={styles.sectionLabel}>Send to players</div>
           <div className={styles.csPlayerList}>

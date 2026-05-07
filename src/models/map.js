@@ -79,6 +79,7 @@ export function makeMap(overrides = {}) {
     cols: 18,
     rows: 14,
     defaultBiome: 'grassland',
+    tab: '',                    // organizer-defined group label (e.g. "World", "Dungeons")
     parentMapId: null,          // for nested/sub-maps
     tileStyle: 'hex',           // 'hex' | 'square'
     backgroundImage: null,      // base64 image — rendered behind the tile grid

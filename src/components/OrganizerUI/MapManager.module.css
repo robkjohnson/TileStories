@@ -1,15 +1,114 @@
+/* ── Tab groups ──────────────────────────── */
+.tabGroup { display: flex; flex-direction: column; gap: 3px; }
+.tabHeader {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 2px 2px;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--text-muted);
+  font-weight: 700;
+}
+.tabHeader::after {
+  content: '';
+  flex: 1;
+  height: 0.5px;
+  background: var(--border);
+}
+
+/* ── Map item (wrapper for row + settings panel) ── */
+.mapItem {
+  border-radius: var(--radius-sm);
+  border: 0.5px solid var(--border);
+  background: var(--bg-raised);
+  overflow: hidden;
+  transition: border-color 0.1s;
+}
+.mapItem:hover { border-color: var(--border-strong); }
+.mapItemActive { border-color: var(--accent) !important; background: rgba(200,169,110,0.05); }
+
+/* ── Compact map row ─────────────────────── */
 .mapRow {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 8px;
-  border-radius: var(--radius-sm);
-  border: 0.5px solid var(--border);
-  background: var(--bg-raised);
-  transition: border-color 0.1s;
+  padding: 5px 8px;
+  cursor: pointer;
+  transition: background 0.1s;
 }
-.mapRow:hover { border-color: var(--border-strong); }
-.mapRowActive { border-color: var(--accent); background: rgba(200,169,110,0.06); }
+.mapRow:hover { background: rgba(255,255,255,0.03); }
+
+/* ── Settings / delete buttons ───────────── */
+.settingsBtn {
+  font-size: 12px;
+  width: 22px; height: 22px;
+  border-radius: 4px;
+  border: 0.5px solid var(--border-strong);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.1s;
+  line-height: 1;
+}
+.settingsBtn:hover { color: var(--text-secondary); background: var(--bg-overlay); }
+.settingsBtnActive { color: var(--accent); border-color: var(--accent); background: rgba(200,169,110,0.12); }
+
+.deleteBtn {
+  font-size: 12px;
+  width: 22px; height: 22px;
+  border-radius: 4px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  transition: color 0.1s;
+  padding: 0;
+}
+.deleteBtn:hover { color: var(--danger); }
+
+/* ── Settings panel ──────────────────────── */
+.settingsPanel {
+  padding: 10px 12px;
+  background: var(--bg-surface);
+  border-top: 0.5px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+.settingsRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.settingsLabel {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  font-weight: 700;
+  flex-shrink: 0;
+  min-width: 52px;
+}
+.settingsInput {
+  flex: 1;
+  font-size: 11px;
+  padding: 3px 6px;
+  border-radius: var(--radius-sm);
+  border: 0.5px solid var(--border-strong);
+  background: var(--bg-input, #1e2025);
+  color: var(--text-primary);
+}
+.settingsBgSection {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
 
 .mapRowMain {
   display: flex;

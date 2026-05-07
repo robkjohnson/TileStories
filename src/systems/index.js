@@ -23,17 +23,16 @@ export function getSystem(id) {
 }
 
 /**
- * Like getSystem, but for the Generic system merges any per-campaign
- * customActorTypes / customDamageTypes overrides set by the organizer.
- * All other systems are returned as-is.
+ * Like getSystem, but merges any per-campaign customActorTypes / customDamageTypes /
+ * customStats overrides set by the organizer. Works for all game systems.
  */
 export function getCampaignSystem(campaign) {
   const base = getSystem(campaign?.gameSystemId)
-  if (base.id !== 'generic') return base
   const actorTypes  = campaign?.customActorTypes  ?? base.actorTypes
   const damageTypes = campaign?.customDamageTypes ?? base.damageTypes
-  if (actorTypes === base.actorTypes && damageTypes === base.damageTypes) return base
-  return { ...base, actorTypes, damageTypes }
+  const stats       = campaign?.customStats       ?? base.stats
+  if (actorTypes === base.actorTypes && damageTypes === base.damageTypes && stats === base.stats) return base
+  return { ...base, actorTypes, damageTypes, stats }
 }
 
 /**

@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react'
-import { useStore, getSystem, getCampaignSystem, GENERIC, SYSTEMS, newId } from '../../store/useStore'
+import { useStore, getSystem, getCampaignSystem, SYSTEMS, newId } from '../../store/useStore'
 import { listCampaigns, loadCampaign, saveCampaign, exportCampaign, importCampaign } from '../../utils/storage'
 import { useDebouncedField } from '../../utils/useDebouncedStore'
 import AbilityLibrary from '../AbilitySystem/AbilityLibrary'
@@ -98,9 +98,7 @@ function CampaignTab() {
       </div>
 
       <GameSystemSection campaign={campaign} updateCampaign={updateCampaign} />
-      {campaign.gameSystemId === 'generic' && (
-        <CustomGameRulesSection campaign={campaign} updateCampaign={updateCampaign} />
-      )}
+      <CustomGameRulesSection campaign={campaign} updateCampaign={updateCampaign} />
       <CoverImageEditor />
 
       <div className={styles.section}>
@@ -198,12 +196,18 @@ function GameSystemSection({ campaign, updateCampaign }) {
   )
 }
 
-// ── Custom game rules (Generic system only) ───────────────────
+// ── Custom game rules (all systems) ──────────────────────────
 function CustomGameRulesSection({ campaign, updateCampaign }) {
   const [newDmgType, setNewDmgType] = useState('')
+  const [addingStat, setAddingStat] = useState(false)
+  const [newStatLabel, setNewStatLabel] = useState('')
+  const [newStatType, setNewStatType] = useState('number')
+  const [newStatGroup, setNewStatGroup] = useState('')
 
-  const actorTypes  = campaign.customActorTypes  ?? GENERIC.actorTypes
-  const damageTypes = campaign.customDamageTypes ?? GENERIC.damageTypes
+  const baseSystem = getSystem(campaign.gameSystemId)
+  const actorTypes  = campaign.customActorTypes  ?? baseSystem.actorTypes
+  const damageTypes = campaign.customDamageTypes ?? baseSystem.damageTypes
+  const stats       = campaign.customStats       ?? baseSystem.stats
 
   const actorCounts = Object.values(campaign.actors || {}).reduce((acc, a) => {
     acc[a.actorType] = (acc[a.actorType] || 0) + 1
@@ -231,21 +235,49 @@ function CustomGameRulesSection({ campaign, updateCampaign }) {
     updateCampaign({ customDamageTypes: damageTypes.filter(t => t !== key) })
   }
 
+  function updateStat(id, patch) {
+    updateCampaign({ customStats: stats.map(s => s.id === id ? { ...s, ...patch } : s) })
+  }
+  function addStat() {
+    const label = newStatLabel.trim()
+    if (!label) return
+    const id = label.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '')
+    if (!id || stats.find(s => s.id === id)) return
+    const group = newStatGroup.trim() || 'custom'
+    const s = {
+      id,
+      label,
+      short: label.slice(0, 4).toUpperCase(),
+      type: newStatType,
+      group,
+      default: newStatType === 'text' ? '' : newStatType === 'attribute' ? 10 : 0,
+    }
+    updateCampaign({ customStats: [...stats, s] })
+    setNewStatLabel('')
+    setNewStatGroup('')
+    setNewStatType('number')
+    setAddingStat(false)
+  }
+  function removeStat(id) {
+    updateCampaign({ customStats: stats.filter(s => s.id !== id) })
+  }
+
   const subLabel = { fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 5, marginTop: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }
   const resetBtn = { background: 'none', border: 'none', cursor: 'pointer', fontSize: 10, color: 'var(--text-muted)', padding: 0 }
   const rowStyle = { display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }
   const checkLabel = { display: 'flex', alignItems: 'center', gap: 2, fontSize: 10, color: 'var(--text-muted)', cursor: 'pointer', whiteSpace: 'nowrap' }
   const checkBox = { accentColor: 'var(--accent)', width: 11, height: 11 }
+  const TYPE_COLORS = { attribute: '#c8a96e', resource: '#5b9bd5', number: 'var(--text-muted)', text: '#7bc47f' }
 
   return (
     <div className={styles.section}>
-      <div className={styles.sectionLabel}>Custom Game Rules</div>
+      <div className={styles.sectionLabel}>Game Rules</div>
 
       {/* Actor Types */}
       <div style={subLabel}>
         <span>Actor Types</span>
         {campaign.customActorTypes !== null && (
-          <button style={resetBtn} onClick={() => updateCampaign({ customActorTypes: null })} title="Reset to Generic defaults">
+          <button style={resetBtn} onClick={() => updateCampaign({ customActorTypes: null })} title="Reset to system defaults">
             Reset
           </button>
         )}
@@ -302,7 +334,7 @@ function CustomGameRulesSection({ campaign, updateCampaign }) {
       <div style={{ ...subLabel, marginTop: 14 }}>
         <span>Damage Types</span>
         {campaign.customDamageTypes !== null && (
-          <button style={resetBtn} onClick={() => updateCampaign({ customDamageTypes: null })} title="Reset to Generic defaults">
+          <button style={resetBtn} onClick={() => updateCampaign({ customDamageTypes: null })} title="Reset to system defaults">
             Reset
           </button>
         )}
@@ -343,6 +375,85 @@ function CustomGameRulesSection({ campaign, updateCampaign }) {
           style={{ fontSize: 11, padding: '3px 8px', background: 'var(--bg-raised)', border: '0.5px solid var(--border)', borderRadius: 'var(--radius-sm)', color: 'var(--text-secondary)', cursor: newDmgType.trim() ? 'pointer' : 'not-allowed', opacity: newDmgType.trim() ? 1 : 0.5 }}
         >Add</button>
       </div>
+
+      {/* Stats */}
+      <div style={{ ...subLabel, marginTop: 14 }}>
+        <span>Stats</span>
+        {campaign.customStats !== null && (
+          <button style={resetBtn} onClick={() => updateCampaign({ customStats: null })} title="Reset to system defaults">
+            Reset
+          </button>
+        )}
+      </div>
+
+      {stats.map(s => (
+        <div key={s.id} style={{ ...rowStyle, marginBottom: 3 }}>
+          <input
+            value={s.short || ''}
+            onChange={e => updateStat(s.id, { short: e.target.value.toUpperCase().slice(0, 5) })}
+            style={{ width: 36, textAlign: 'center', fontSize: 10, fontWeight: 600, padding: '2px 3px', flexShrink: 0, fontFamily: 'monospace' }}
+            title="Short label"
+            maxLength={5}
+          />
+          <input
+            value={s.label}
+            onChange={e => updateStat(s.id, { label: e.target.value })}
+            style={{ flex: 1, fontSize: 11, minWidth: 0 }}
+            placeholder="Stat name"
+          />
+          <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 8, border: `0.5px solid ${TYPE_COLORS[s.type] || 'var(--border)'}`, color: TYPE_COLORS[s.type] || 'var(--text-muted)', flexShrink: 0, whiteSpace: 'nowrap' }}>
+            {s.type}
+          </span>
+          <button
+            onClick={() => removeStat(s.id)}
+            title={`Remove "${s.label}"`}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 15, opacity: 0.7, padding: '0 2px', lineHeight: 1, flexShrink: 0 }}
+          >×</button>
+        </div>
+      ))}
+
+      {addingStat ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 5, marginTop: 4, padding: '8px 10px', background: 'var(--bg-raised)', borderRadius: 'var(--radius-sm)', border: '0.5px solid var(--border)' }}>
+          <input
+            autoFocus
+            value={newStatLabel}
+            onChange={e => setNewStatLabel(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && addStat()}
+            placeholder="Stat name…"
+            style={{ fontSize: 11 }}
+          />
+          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+            {['number', 'attribute', 'resource', 'text'].map(t => (
+              <button key={t} onClick={() => setNewStatType(t)} style={{
+                padding: '2px 7px', borderRadius: 10, fontSize: 10, cursor: 'pointer',
+                border: `0.5px solid ${newStatType === t ? TYPE_COLORS[t] : 'var(--border)'}`,
+                background: newStatType === t ? (TYPE_COLORS[t] + '22') : 'transparent',
+                color: newStatType === t ? TYPE_COLORS[t] : 'var(--text-muted)',
+              }}>{t}</button>
+            ))}
+          </div>
+          <input
+            value={newStatGroup}
+            onChange={e => setNewStatGroup(e.target.value)}
+            placeholder="Group (e.g. combat, custom)…"
+            style={{ fontSize: 11 }}
+          />
+          <div style={{ display: 'flex', gap: 5, justifyContent: 'flex-end' }}>
+            <button onClick={() => { setAddingStat(false); setNewStatLabel(''); setNewStatGroup(''); setNewStatType('number') }}
+              style={{ fontSize: 11, padding: '3px 8px', background: 'transparent', border: '0.5px solid var(--border)', borderRadius: 3, color: 'var(--text-muted)', cursor: 'pointer' }}>
+              Cancel
+            </button>
+            <button onClick={addStat} disabled={!newStatLabel.trim()}
+              style={{ fontSize: 11, padding: '3px 8px', background: 'var(--accent)', border: 'none', borderRadius: 3, color: '#1a1a1a', fontWeight: 600, cursor: newStatLabel.trim() ? 'pointer' : 'not-allowed', opacity: newStatLabel.trim() ? 1 : 0.5 }}>
+              Add
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button className={styles.addEntryBtn} onClick={() => setAddingStat(true)} style={{ fontSize: 11, padding: '4px 8px', marginTop: 3 }}>
+          + Add stat
+        </button>
+      )}
     </div>
   )
 }

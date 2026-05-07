@@ -109,6 +109,23 @@ Status modifiers define what a status actually does when applied.
 
 ---
 
+## Adding a New Stat or Changing the Character Sheet
+
+Stats are entirely data-driven — the character sheet reads from `system.stats` (resolved via `getCampaignSystem`) and renders each stat according to its `type` field. To add a new stat to a system:
+
+1. Add an entry to the `stats` array in the system definition file (e.g. `src/systems/dnd5e.js`).
+2. Set the `type`, `group`, and optional `actorTypes` filter. No UI changes are needed — `DynamicStatsSection` in `CharacterSheet.jsx` picks it up automatically.
+
+To add a new stat **type** (beyond `attribute`, `resource`, `number`, `text`):
+
+1. Add a new `type` value to the stat schema documentation.
+2. Add a rendering branch inside `DynamicStatsSection` in `src/components/CharacterSheet/CharacterSheet.jsx`.
+3. Add any new CSS classes to `CharacterSheet.module.css`.
+
+Organizers can also override `system.stats` per-campaign via the **Game Rules** sidebar without touching system files. See `docs/game-systems.md` for details.
+
+---
+
 ## Adding a New Game System
 
 See `docs/game-systems.md` for the full walkthrough.

@@ -110,6 +110,24 @@ export const SYSTEMS = [DND5E, GENERIC, MYSYSTEM]
 
 ---
 
+## Per-Campaign Game Rule Overrides
+
+Any campaign — regardless of its `gameSystemId` — can override the base system's actor types, damage types, and stats. The organizer manages these in the **Game Rules** section of the left sidebar.
+
+Overrides are stored directly on the campaign object:
+
+| Campaign field | Overrides | Default |
+|---|---|---|
+| `customActorTypes` | `system.actorTypes` | `null` (uses base system) |
+| `customDamageTypes` | `system.damageTypes` | `null` (uses base system) |
+| `customStats` | `system.stats` | `null` (uses base system) |
+
+When any of these fields are non-null, `getCampaignSystem(campaign)` in `src/systems/index.js` merges them with the base system before returning, so all downstream consumers (character sheet, stat editors, ability builder) automatically see the campaign-specific rules.
+
+Organizers can reset any override to the base system defaults at any time. The character sheet renders stats dynamically from `system.stats`, so adding or removing stats immediately updates all actor views without data migration.
+
+---
+
 ## Adapting Existing Campaigns
 
 When you create a campaign with a custom system, the organizer picks the system at creation time and it's stored in `campaign.gameSystemId`. If you want to change the system for an existing campaign:

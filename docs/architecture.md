@@ -115,6 +115,8 @@ Messages are JSON objects with a `type` field. Key flows:
 | Server → Player | `CAMPAIGN_UPDATED` | Sanitized campaign broadcast |
 | Org → Server | `SHOW_STORYBOARD` | Pushes storyboard to Display screen |
 | Org → Server | `SHOW_STORYBOARD_TO_PLAYER` | Pushes storyboard to specific player |
+| Player → Server | `DICE_ROLL` | Player submits a dice roll result |
+| Server → All | `DICE_ROLL_BROADCAST` | Server re-broadcasts dice roll to all connected clients |
 
 ## Campaign Sanitization
 

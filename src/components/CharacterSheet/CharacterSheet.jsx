@@ -317,28 +317,7 @@ export default function CharacterSheet({ characterId, onClose, inline }) {
           </div>
 
           {/* Stats */}
-          <div className={styles.section}>
-            <div className={styles.sectionLabel}>Stats</div>
-            <div className={styles.statsGrid}>
-              <StatField label="HP" value={character.stats.hp} max={character.stats.maxHp}
-                onChange={v => updateStat('hp', v)} onMaxChange={v => updateStat('maxHp', v)} showMax />
-              <StatField label="Speed" value={character.stats.speed} onChange={v => updateStat('speed', v)} />
-            </div>
-            {system.actorTypes.find(t => t.id === character.actorType)?.isPlayer && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, padding: '8px 10px', background: 'var(--bg-raised)', borderRadius: 'var(--radius-sm)', border: '0.5px solid var(--border)' }}>
-                <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-muted)', minWidth: 50 }}>Gold (gp)</div>
-                <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--accent)' }}>$</span>
-                <button style={{ width: 24, height: 24, borderRadius: 4, border: '0.5px solid var(--border-strong)', background: 'var(--bg-overlay)', color: 'var(--text-secondary)', fontSize: 15, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                  onClick={() => update('currency', { ...character.currency, gp: Math.max(0, (character.currency?.gp ?? 0) - 1) })}>−</button>
-                <input type="number" min={0}
-                  value={character.currency?.gp ?? 0}
-                  onChange={e => update('currency', { ...character.currency, gp: Math.max(0, parseFloat(e.target.value) || 0) })}
-                  style={{ width: 64, background: 'transparent', border: 'none', borderBottom: '0.5px solid var(--border-strong)', color: 'var(--text-primary)', fontSize: 16, fontWeight: 600, padding: '0 2px', textAlign: 'center' }} />
-                <button style={{ width: 24, height: 24, borderRadius: 4, border: '0.5px solid var(--border-strong)', background: 'var(--bg-overlay)', color: 'var(--text-secondary)', fontSize: 15, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                  onClick={() => update('currency', { ...character.currency, gp: (character.currency?.gp ?? 0) + 1 })}>+</button>
-              </div>
-            )}
-          </div>
+          <DynamicStatsSection character={character} system={system} updateStat={updateStat} update={update} />
 
           {/* Location */}
           <div className={styles.section}>
@@ -578,6 +557,115 @@ function StatField({ label, value, max, onChange, onMaxChange, showMax }) {
             onChange={e => onMaxChange(parseInt(e.target.value) || 0)} />
         </>}
       </div>
+    </div>
+  )
+}
+
+// ── Dynamic stats section — renders all system stats ─────────
+function DynamicStatsSection({ character, system, updateStat, update }) {
+  const stats = character.stats || {}
+  const maxHpId = system.maxHpStat
+
+  const visibleStats = (system.stats || []).filter(s => {
+    if (s.id === maxHpId) return false
+    if (s.actorTypes && !s.actorTypes.includes(character.actorType)) return false
+    return true
+  })
+
+  const groupOrder = []
+  const groupSeen = new Set()
+  for (const s of visibleStats) {
+    const g = s.group || 'general'
+    if (!groupSeen.has(g)) { groupSeen.add(g); groupOrder.push(g) }
+  }
+
+  const isPlayer = system.actorTypes.find(t => t.id === character.actorType)?.isPlayer
+  const baseCurrency = system.currencies?.find(c => c.baseConversion === 1) || system.currencies?.[0]
+
+  return (
+    <div className={styles.section}>
+      <div className={styles.sectionLabel}>Stats</div>
+
+      {groupOrder.map((group, gi) => {
+        const groupStats = visibleStats.filter(s => (s.group || 'general') === group)
+        const hasAttributes = groupStats.some(s => s.type === 'attribute')
+        const groupLabel = group.charAt(0).toUpperCase() + group.slice(1)
+
+        return (
+          <div key={group}>
+            {groupOrder.length > 1 && gi > 0 && (
+              <div className={styles.statGroupLabel}>{groupLabel}</div>
+            )}
+
+            {hasAttributes ? (
+              <div className={styles.attrGrid}>
+                {groupStats.filter(s => s.type === 'attribute').map(stat => {
+                  const score = stats[stat.id] ?? stat.default ?? 10
+                  const mod = Math.floor((score - 10) / 2)
+                  return (
+                    <div key={stat.id} className={styles.attrBox}>
+                      <div className={styles.attrLabel}>{stat.short}</div>
+                      <input type="number" className={styles.attrInput}
+                        value={score}
+                        onChange={e => updateStat(stat.id, parseInt(e.target.value) || 0)} />
+                      <div className={styles.attrMod}>{mod >= 0 ? '+' : ''}{mod}</div>
+                    </div>
+                  )
+                })}
+              </div>
+            ) : (
+              <div className={styles.statsGrid}>
+                {groupStats.map(stat => {
+                  if (stat.type === 'resource') {
+                    return (
+                      <StatField key={stat.id} label={stat.short || stat.label}
+                        value={stats[stat.id] ?? stat.default ?? 0}
+                        max={maxHpId ? (stats[maxHpId] ?? 0) : 0}
+                        onChange={v => updateStat(stat.id, v)}
+                        onMaxChange={maxHpId ? v => updateStat(maxHpId, v) : undefined}
+                        showMax={!!maxHpId} />
+                    )
+                  } else if (stat.type === 'text') {
+                    return (
+                      <div key={stat.id} className={styles.statField}>
+                        <div className={styles.statLabel}>{stat.short || stat.label}</div>
+                        <div className={styles.statInputRow}>
+                          <input type="text" className={styles.statInput}
+                            value={stats[stat.id] ?? stat.default ?? ''}
+                            onChange={e => updateStat(stat.id, e.target.value)} />
+                        </div>
+                      </div>
+                    )
+                  } else {
+                    return (
+                      <StatField key={stat.id} label={stat.short || stat.label}
+                        value={stats[stat.id] ?? stat.default ?? 0}
+                        onChange={v => updateStat(stat.id, v)} />
+                    )
+                  }
+                })}
+              </div>
+            )}
+          </div>
+        )
+      })}
+
+      {isPlayer && baseCurrency && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, padding: '8px 10px', background: 'var(--bg-raised)', borderRadius: 'var(--radius-sm)', border: '0.5px solid var(--border)' }}>
+          <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-muted)', minWidth: 50 }}>
+            {baseCurrency.label} ({baseCurrency.shortLabel?.toLowerCase()})
+          </div>
+          <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--accent)' }}>$</span>
+          <button style={{ width: 24, height: 24, borderRadius: 4, border: '0.5px solid var(--border-strong)', background: 'var(--bg-overlay)', color: 'var(--text-secondary)', fontSize: 15, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            onClick={() => update('currency', { ...character.currency, [baseCurrency.id]: Math.max(0, (character.currency?.[baseCurrency.id] ?? 0) - 1) })}>−</button>
+          <input type="number" min={0}
+            value={character.currency?.[baseCurrency.id] ?? 0}
+            onChange={e => update('currency', { ...character.currency, [baseCurrency.id]: Math.max(0, parseFloat(e.target.value) || 0) })}
+            style={{ width: 64, background: 'transparent', border: 'none', borderBottom: '0.5px solid var(--border-strong)', color: 'var(--text-primary)', fontSize: 16, fontWeight: 600, padding: '0 2px', textAlign: 'center' }} />
+          <button style={{ width: 24, height: 24, borderRadius: 4, border: '0.5px solid var(--border-strong)', background: 'var(--bg-overlay)', color: 'var(--text-secondary)', fontSize: 15, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            onClick={() => update('currency', { ...character.currency, [baseCurrency.id]: (character.currency?.[baseCurrency.id] ?? 0) + 1 })}>+</button>
+        </div>
+      )}
     </div>
   )
 }

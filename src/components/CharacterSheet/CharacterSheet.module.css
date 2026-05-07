@@ -217,6 +217,61 @@
 .statInput:focus { outline: none; color: var(--accent); }
 .statSep { color: var(--text-muted); font-size: 13px; }
 
+/* ── Ability score grid (attribute type stats) ── */
+.attrGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  margin-bottom: 4px;
+}
+.attrBox {
+  background: var(--bg-raised);
+  border-radius: var(--radius-sm);
+  border: 0.5px solid var(--border);
+  padding: 6px 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.attrLabel {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+.attrInput {
+  width: 100%;
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  font-size: 15px;
+  font-weight: 700;
+  padding: 0;
+  text-align: center;
+}
+.attrInput:focus { outline: none; color: var(--accent); }
+.attrMod {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 500;
+  background: var(--bg-overlay);
+  border-radius: 10px;
+  padding: 1px 6px;
+  min-width: 28px;
+  text-align: center;
+}
+.statGroupLabel {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+  margin-top: 8px;
+  font-weight: 600;
+}
+
 /* ── Location ── */
 .locationRow { display: flex; align-items: center; gap: 8px; font-size: 13px; }
 .locationMap { color: var(--accent); font-weight: 500; }
