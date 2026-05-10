@@ -65,6 +65,10 @@ function EmptyState() {
 function TileDetail({ q, r, tile, tileTypes, onBiomeChange, onFieldChange, onOpenSheet }) {
   const tileType = getTileType(tile.biome, tileTypes)
   const tileBgInputRef = useRef(null)
+  const [activeTileKey, setActiveTileKey] = useState(null)
+
+  const currentKey = `${q},${r}`
+  const isShowingThisTile = activeTileKey === currentKey
 
   function handleTileBgUpload(e) {
     const file = e.target.files?.[0]
@@ -76,7 +80,13 @@ function TileDetail({ q, r, tile, tileTypes, onBiomeChange, onFieldChange, onOpe
   }
 
   function showTileOnDisplay() {
-    window.__tilestoriesSend?.({ type: 'SHOW_TILE', q, r })
+    if (isShowingThisTile) {
+      window.__tilestoriesSend?.({ type: 'HIDE_TILE' })
+      setActiveTileKey(null)
+    } else {
+      window.__tilestoriesSend?.({ type: 'SHOW_TILE', q, r })
+      setActiveTileKey(currentKey)
+    }
   }
 
   return (
@@ -93,15 +103,17 @@ function TileDetail({ q, r, tile, tileTypes, onBiomeChange, onFieldChange, onOpe
         </div>
         <button
           onClick={showTileOnDisplay}
-          title="Show this tile's background on the display screen"
+          title={isShowingThisTile ? 'Hide tile from display' : "Show this tile's background on the display screen"}
           style={{
             padding: '4px 8px', borderRadius: 4, fontSize: 11,
-            background: 'rgba(0,0,0,0.25)', color: tileType.textColor,
-            border: `0.5px solid ${tileType.textColor}55`, cursor: 'pointer',
+            background: isShowingThisTile ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.25)',
+            color: tileType.textColor,
+            border: `0.5px solid ${tileType.textColor}88`, cursor: 'pointer',
             flexShrink: 0, transition: 'background 0.1s',
+            fontWeight: isShowingThisTile ? 600 : 400,
           }}
         >
-          Show Tile
+          {isShowingThisTile ? 'Hide Tile' : 'Show Tile'}
         </button>
       </div>
 

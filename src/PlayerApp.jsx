@@ -1241,16 +1241,51 @@ function PlayerCharacterView({ character, campaign, localCharacter, send, onRoll
               ))}
             </div>
           )}
-          <div className={styles.statGrid}>
-            {[
-              ['Speed', `${sb.speed ?? 3} tiles`],
-            ].map(([l, v]) => (
-              <div key={l} className={styles.statBox}>
-                <div className={styles.statLabel}>{l}</div>
-                <div className={styles.statValue}>{v}</div>
+          {(() => {
+            const sys = getCampaignSystem(campaign)
+            const hpId = sys?.hpStat || 'hp'
+            const maxHpId = sys?.maxHpStat || 'maxHp'
+            const allStats = (sys?.stats || []).filter(s => {
+              if (s.id === hpId || s.id === maxHpId) return false
+              if (s.actorTypes && !s.actorTypes.includes(character.actorType)) return false
+              return true
+            })
+            const GROUP_LABELS = { abilities: 'Ability Scores', combat: 'Combat', creature: 'Creature', core: 'Stats' }
+            const groups = []
+            const seen = {}
+            allStats.forEach(s => {
+              const g = s.group || 'other'
+              if (!seen[g]) { seen[g] = []; groups.push({ key: g, stats: seen[g] }) }
+              seen[g].push(s)
+            })
+            return groups.map(({ key, stats }) => (
+              <div key={key} style={{ marginBottom: 6 }}>
+                {groups.length > 1 && (
+                  <div className={styles.viewSectionLabel} style={{ marginBottom: 4 }}>
+                    {GROUP_LABELS[key] || key.charAt(0).toUpperCase() + key.slice(1)}
+                  </div>
+                )}
+                <div className={styles.statGrid}>
+                  {stats.map(stat => {
+                    const raw = sb[stat.id]
+                    const displayVal = raw ?? stat.default ?? '—'
+                    const mod = stat.type === 'attribute' && raw != null
+                      ? Math.floor((Number(raw) - 10) / 2)
+                      : null
+                    return (
+                      <div key={stat.id} className={styles.statBox}>
+                        <div className={styles.statLabel}>{stat.short || stat.label}</div>
+                        <div className={styles.statValue}>{displayVal}</div>
+                        {mod != null && (
+                          <div className={styles.statMod}>{mod >= 0 ? '+' : ''}{mod}</div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
               </div>
-            ))}
-          </div>
+            ))
+          })()}
           {/* Currency wallet */}
           {(() => {
             const sys = getCampaignSystem(campaign)

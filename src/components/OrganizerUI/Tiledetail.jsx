@@ -15,6 +15,7 @@ export default function TileDetail({ onOpenEntity }) {
   const tileBgInputRef = useRef(null)
   const [tileTypeOpen, setTileTypeOpen] = useState(false)
   const tileTypeRef = useRef(null)
+  const [activeTileKey, setActiveTileKey] = useState(null)
 
   React.useEffect(() => {
     if (!tileTypeOpen) return
@@ -46,18 +47,28 @@ export default function TileDetail({ onOpenEntity }) {
     e.target.value = ''
   }
 
+  const currentKey = selectedTile ? `${selectedTile.q},${selectedTile.r}` : null
+  const isShowingThisTile = activeTileKey !== null && activeTileKey === currentKey
+
   async function handleShowTile() {
     if (!window.__tilestoriesSend) return
+    if (isShowingThisTile) {
+      window.__tilestoriesSend({ type: 'HIDE_TILE' })
+      setActiveTileKey(null)
+      return
+    }
     const sbId = tile.displayStoryboardId
     if (sbId) {
       const sb = campaign?.storyboards?.[sbId]
       if (sb) {
         const resolved = await resolveStoryboardImages(sb)
         window.__tilestoriesSend({ type: 'SHOW_STORYBOARD', storyboard: resolved })
+        setActiveTileKey(null)
         return
       }
     }
     window.__tilestoriesSend({ type: 'SHOW_TILE', q: selectedTile.q, r: selectedTile.r })
+    setActiveTileKey(currentKey)
   }
 
   return (
@@ -71,8 +82,8 @@ export default function TileDetail({ onOpenEntity }) {
         </div>
         <button
           onClick={handleShowTile}
-          style={{ padding: '4px 8px', borderRadius: 4, fontSize: 11, background: 'rgba(0,0,0,0.25)', color: tileType.textColor, border: `0.5px solid ${tileType.textColor}55`, cursor: 'pointer', flexShrink: 0 }}
-        >Show Tile</button>
+          style={{ padding: '4px 8px', borderRadius: 4, fontSize: 11, background: isShowingThisTile ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.25)', color: tileType.textColor, border: `0.5px solid ${tileType.textColor}88`, cursor: 'pointer', flexShrink: 0, fontWeight: isShowingThisTile ? 600 : 400 }}
+        >{isShowingThisTile ? 'Hide Tile' : 'Show Tile'}</button>
       </div>
 
       {/* Label + show toggle */}
