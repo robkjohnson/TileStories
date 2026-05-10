@@ -138,6 +138,7 @@
 .actionRow { display: flex; gap: 5px; flex-wrap: wrap; max-width: 100%; }
 .actionBtn { flex: 1; padding: 5px 6px; border-radius: var(--radius-sm); border: 0.5px solid var(--border-strong); background: transparent; color: var(--text-secondary); font-size: 11px; cursor: pointer; text-align: center; }
 .actionBtn:hover { background: var(--bg-overlay); color: var(--accent); }
+.actionBtnActive { border-color: var(--accent) !important; color: var(--accent) !important; background: rgba(200,169,110,0.1) !important; }
 .fieldRow { display: flex; gap: 6px; align-items: center; }
 .filterRow { display: flex; gap: 3px; flex-wrap: wrap; }
 .filterBtn { padding: 2px 8px; border-radius: 10px; border: 0.5px solid var(--border); background: transparent; color: var(--text-muted); font-size: 10px; cursor: pointer; }
@@ -153,6 +154,7 @@
 .dangerBtnSm { padding: 4px 8px; border-radius: var(--radius-sm); border: 0.5px solid var(--danger); background: transparent; color: var(--danger); font-size: 11px; cursor: pointer; }
 .smallBtn { padding: 4px 10px; border-radius: var(--radius-sm); border: 0.5px solid var(--border-strong); background: transparent; color: var(--text-secondary); font-size: 11px; cursor: pointer; }
 .smallBtn:hover { background: var(--bg-overlay); }
+.smallBtnActive { border-color: var(--accent) !important; color: var(--accent) !important; background: rgba(200,169,110,0.1) !important; }
 .saveBtn { padding: 5px 12px; border-radius: var(--radius-sm); background: var(--accent); color: #1a1a1a; font-size: 11px; font-weight: 600; border: none; cursor: pointer; }
 .cancelBtn { padding: 5px 10px; border-radius: var(--radius-sm); border: 0.5px solid var(--border-strong); background: transparent; color: var(--text-secondary); font-size: 11px; cursor: pointer; }
 .addSmallBtn { font-size: 11px; color: var(--accent); background: none; border: 0.5px solid var(--accent-dim); border-radius: 10px; padding: 2px 8px; cursor: pointer; }
@@ -451,6 +453,43 @@
 .csPlayerName { font-weight: 500; color: var(--text-primary); }
 .csPlayerChar { color: var(--text-muted); font-size: 11px; }
 
+/* ── Pill-style player selector ── */
+.csPlayerPills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.csPlayerPill {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 5px 9px;
+  border-radius: var(--radius-sm);
+  border: 0.5px solid var(--border-strong);
+  background: var(--bg-overlay);
+  cursor: pointer;
+  transition: all 0.1s;
+  text-align: left;
+  min-width: 0;
+}
+.csPlayerPill:hover { border-color: var(--text-muted); }
+.csPlayerPillActive { border-color: var(--accent) !important; background: rgba(200,169,110,0.1); }
+.csPlayerPillName { font-size: 12px; font-weight: 500; color: var(--text-primary); white-space: nowrap; }
+.csPlayerPillActive .csPlayerPillName { color: var(--accent); }
+.csPlayerPillChar { font-size: 10px; color: var(--text-muted); white-space: nowrap; }
+.csSelectAllBtn {
+  font-size: 10px;
+  color: var(--text-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
+  text-decoration: underline;
+  align-self: flex-start;
+}
+.csSelectAllBtn:hover { color: var(--text-secondary); }
+
 .csRewardCheck {
   display: flex;
   align-items: center;
@@ -487,6 +526,63 @@
   align-items: center;
   gap: 5px;
 }
+
+/* ── Join screen section ──────────────────────────────────────── */
+.joinPreviewBlock {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  background: var(--bg-overlay);
+  border-radius: var(--radius-sm);
+  border: 0.5px solid var(--border);
+}
+.joinPreviewQr {
+  flex-shrink: 0;
+  padding: 4px;
+  background: var(--bg-surface);
+  border-radius: 4px;
+}
+.joinPreviewInfo {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.joinPreviewUrl {
+  font-size: 11px;
+  color: var(--text-primary);
+  font-family: monospace;
+  word-break: break-all;
+  font-weight: 600;
+}
+.joinBgRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.joinBgThumb {
+  width: 72px;
+  height: 44px;
+  object-fit: cover;
+  border-radius: 4px;
+  border: 0.5px solid var(--border);
+  flex-shrink: 0;
+}
+.bgAddBtn {
+  width: 100%;
+  padding: 4px 8px;
+  font-size: 11px;
+  color: var(--text-muted);
+  background: none;
+  border: 0.5px dashed var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  text-align: center;
+  transition: color 0.1s, border-color 0.1s;
+}
+.bgAddBtn:hover { color: var(--text-secondary); border-color: var(--border-strong); }
 
 /* Display button */
 .displayBtn {

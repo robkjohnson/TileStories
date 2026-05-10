@@ -1,13 +1,16 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useStore } from '../../store/useStore'
 import { useSessionStore } from '../../store/useSessionStore'
 import styles from './Sidebar.module.css'
 import TurnTracker from '../TurnTracker/TurnTracker'
 import { rollDice, DICE_TYPES } from '../../utils/dice'
+import { getCampaignSystem } from '../../systems/index'
+import { QRCodeSVG } from 'qrcode.react'
 
 export default function SessionControls() {
-  const { campaign, displayLabelSize, setDisplayLabelSize } = useStore()
+  const { campaign, updateCampaign, displayLabelSize, setDisplayLabelSize } = useStore()
   const { session, connected, setServerInfo, diceRolls } = useSessionStore()
+  const [joinScreenOn, setJoinScreenOn] = useState(false)
   const [cutsceneForm, setCutsceneForm] = useState(false)
   const [playerUrl, setPlayerUrl] = useState(null)
 
@@ -78,6 +81,18 @@ export default function SessionControls() {
               onClick={() => send({ type: 'START_GAME' })}>▶ Begin</button>
           </div>
         </div>
+      )}
+
+      {/* Join screen settings — visible when there's a session (lobby or active) */}
+      {session && (
+        <JoinScreenSection
+          campaign={campaign}
+          updateCampaign={updateCampaign}
+          playerUrl={playerUrl}
+          joinScreenOn={joinScreenOn}
+          setJoinScreenOn={setJoinScreenOn}
+          send={send}
+        />
       )}
 
       {/* Active / paused */}
@@ -165,6 +180,15 @@ export default function SessionControls() {
               onClick={() => send({ type: 'SHOW_DISPLAY_MAP' })}>
               🗺 Show map
             </button>
+            <button
+              className={`${styles.actionBtn} ${joinScreenOn ? styles.actionBtnActive : ''}`}
+              onClick={() => {
+                const next = !joinScreenOn
+                setJoinScreenOn(next)
+                send({ type: 'SET_JOIN_SCREEN', visible: next })
+              }}>
+              🔗 Join screen
+            </button>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
             <span style={{ fontSize: 11, color: 'var(--text-secondary)', flex: 1 }}>Label size</span>
@@ -188,6 +212,78 @@ export default function SessionControls() {
   )
 }
 
+// ── Join screen section ───────────────────────────────────────
+function JoinScreenSection({ campaign, updateCampaign, playerUrl, joinScreenOn, setJoinScreenOn, send }) {
+  const fileRef = useRef(null)
+  const hasBg = !!campaign?.joinScreenBg
+
+  function handleBgUpload(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = ev => updateCampaign({ joinScreenBg: ev.target.result })
+    reader.readAsDataURL(file)
+    e.target.value = ''
+  }
+
+  function toggleJoinScreen() {
+    const next = !joinScreenOn
+    setJoinScreenOn(next)
+    send({ type: 'SET_JOIN_SCREEN', visible: next })
+  }
+
+  return (
+    <div className={styles.section}>
+      <div className={styles.sectionLabel} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        🔗 Join Screen
+        <button
+          className={`${styles.smallBtn} ${joinScreenOn ? styles.smallBtnActive : ''}`}
+          style={{ marginLeft: 'auto' }}
+          onClick={toggleJoinScreen}
+        >
+          {joinScreenOn ? 'Showing' : 'Show on display'}
+        </button>
+      </div>
+
+      {/* QR code + URL preview */}
+      {playerUrl && (
+        <div className={styles.joinPreviewBlock}>
+          <div className={styles.joinPreviewQr}>
+            <QRCodeSVG value={playerUrl} size={72} bgColor="transparent" fgColor="var(--text-primary)" level="M" />
+          </div>
+          <div className={styles.joinPreviewInfo}>
+            <div className={styles.joinPreviewUrl}>{playerUrl}</div>
+            <button className={styles.copyBtn} onClick={() => navigator.clipboard.writeText(playerUrl)}>
+              Copy link
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Background image */}
+      <div className={styles.sectionLabel} style={{ marginTop: 4 }}>Background image</div>
+      {hasBg ? (
+        <div className={styles.joinBgRow}>
+          <img
+            src={campaign.joinScreenBg}
+            alt="Join screen background"
+            className={styles.joinBgThumb}
+          />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <button className={styles.smallBtn} onClick={() => fileRef.current?.click()}>Replace</button>
+            <button className={styles.smallBtn} onClick={() => updateCampaign({ joinScreenBg: null })}>Remove</button>
+          </div>
+        </div>
+      ) : (
+        <button className={styles.bgAddBtn} onClick={() => fileRef.current?.click()}>
+          + Add background image
+        </button>
+      )}
+      <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleBgUpload} />
+    </div>
+  )
+}
+
 // ── Dice section ─────────────────────────────────────────────
 function DiceSection({ diceRolls, players, campaign, send }) {
   const [showRequestForm, setShowRequestForm] = useState(false)
@@ -195,14 +291,21 @@ function DiceSection({ diceRolls, players, campaign, send }) {
 
   // Player roll request state
   const [selectedPlayers, setSelectedPlayers] = useState(new Set())
+  const [requestDiceType, setRequestDiceType] = useState('d20')
   const [threshold, setThreshold] = useState('')
   const [requestDescription, setRequestDescription] = useState('')
+  const [requestStatId, setRequestStatId] = useState(null)
 
   // Organizer roll state
   const [rollDiceType, setRollDiceType] = useState('d20')
   const [rollName, setRollName] = useState('')
   const [rollDescription, setRollDescription] = useState('')
   const [rollThreshold, setRollThreshold] = useState('')
+  const [rollStatId, setRollStatId] = useState(null)
+  const [rollBonus, setRollBonus] = useState('')
+
+  const system = getCampaignSystem(campaign)
+  const rollableStats = (system?.stats || []).filter(s => s.type === 'attribute' || s.type === 'number')
 
   function togglePlayer(deviceId) {
     setSelectedPlayers(prev => {
@@ -212,13 +315,26 @@ function DiceSection({ diceRolls, players, campaign, send }) {
     })
   }
 
+  function toggleAllPlayers() {
+    if (selectedPlayers.size === players.length) {
+      setSelectedPlayers(new Set())
+    } else {
+      setSelectedPlayers(new Set(players.map(p => p.deviceId)))
+    }
+  }
+
   function handleOrganizerRoll() {
     const value = rollDice(rollDiceType)
+    const bonusNum = rollBonus !== '' ? parseInt(rollBonus) : null
+    const statDef = rollStatId ? rollableStats.find(s => s.id === rollStatId) : null
     send({
       type: 'DICE_ROLL',
       characterName: rollName.trim() || 'Organizer',
       diceType: rollDiceType,
       value,
+      bonus: bonusNum,
+      statId: rollStatId || null,
+      statLabel: statDef ? (statDef.short || statDef.label) : null,
       description: rollDescription.trim() || null,
       threshold: rollThreshold ? parseInt(rollThreshold) : null,
     })
@@ -226,21 +342,27 @@ function DiceSection({ diceRolls, players, campaign, send }) {
     setRollName('')
     setRollDescription('')
     setRollThreshold('')
+    setRollStatId(null)
+    setRollBonus('')
   }
 
   function handleSendRequest() {
     if (selectedPlayers.size === 0) return
+    const statDef = requestStatId ? rollableStats.find(s => s.id === requestStatId) : null
     send({
       type: 'SEND_ROLL_REQUEST',
       deviceIds: [...selectedPlayers],
-      diceType: 'd20',
+      diceType: requestDiceType,
       threshold: threshold ? parseInt(threshold) : null,
       description: requestDescription.trim() || null,
+      statId: requestStatId || null,
     })
     setShowRequestForm(false)
     setSelectedPlayers(new Set())
     setThreshold('')
     setRequestDescription('')
+    setRequestStatId(null)
+    setRequestDiceType('d20')
   }
 
   return (
@@ -259,6 +381,7 @@ function DiceSection({ diceRolls, players, campaign, send }) {
       )}
 
       {diceRolls.slice(0, 10).map((roll, i) => {
+        const displayVal = roll.total ?? roll.value
         const isSuccess = roll.success === true
         const isFail = roll.success === false
         return (
@@ -272,18 +395,23 @@ function DiceSection({ diceRolls, players, campaign, send }) {
             fontSize: 12,
           }}>
             <span style={{ fontWeight: 700, fontSize: 15, color: isSuccess ? '#7bc47f' : isFail ? '#c25a4a' : 'var(--text-primary)', minWidth: 22, textAlign: 'center' }}>
-              {roll.value}
+              {displayVal}
             </span>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {roll.characterName}
                 {roll.rolledBy === 'organizer' && (
-                  <span style={{ fontSize: 9, color: 'var(--text-muted)', marginLeft: 4, fontStyle: 'normal' }}>DM</span>
+                  <span style={{ fontSize: 9, color: 'var(--text-muted)', marginLeft: 4 }}>DM</span>
                 )}
               </div>
               {roll.description && (
                 <div style={{ fontSize: 10, color: 'var(--text-muted)', fontStyle: 'italic', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {roll.description}
+                </div>
+              )}
+              {roll.bonus != null && (
+                <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+                  {roll.value} + {roll.statLabel || 'bonus'} ({roll.bonus >= 0 ? '+' : ''}{roll.bonus})
                 </div>
               )}
               {roll.threshold != null && (
@@ -345,6 +473,30 @@ function DiceSection({ diceRolls, players, campaign, send }) {
             onChange={e => setRollDescription(e.target.value)}
           />
 
+          {rollableStats.length > 0 && (<>
+            <div className={styles.sectionLabel} style={{ marginTop: 4 }}>Stat — optional</div>
+            <div className={styles.csTypeRow} style={{ flexWrap: 'wrap', gap: 3 }}>
+              {rollableStats.map(stat => (
+                <button
+                  key={stat.id}
+                  className={`${styles.csTypeBtn} ${rollStatId === stat.id ? styles.csTypeBtnActive : ''}`}
+                  style={{ flex: 'none', padding: '4px 7px' }}
+                  onClick={() => { setRollStatId(prev => prev === stat.id ? null : stat.id); setRollBonus('') }}
+                >
+                  {stat.short || stat.label}
+                </button>
+              ))}
+            </div>
+            {rollStatId && (
+              <input
+                type="number"
+                placeholder="Bonus (e.g. +3, -1)"
+                value={rollBonus}
+                onChange={e => setRollBonus(e.target.value)}
+              />
+            )}
+          </>)}
+
           <div className={styles.sectionLabel} style={{ marginTop: 4 }}>DC — optional</div>
           <input
             type="number"
@@ -361,6 +513,8 @@ function DiceSection({ diceRolls, players, campaign, send }) {
               setRollName('')
               setRollDescription('')
               setRollThreshold('')
+              setRollStatId(null)
+              setRollBonus('')
             }}>Cancel</button>
             <button className={styles.primaryBtn} onClick={handleOrganizerRoll} style={{ flex: 1 }}>
               🎲 Roll {rollDiceType.toUpperCase()}
@@ -372,25 +526,19 @@ function DiceSection({ diceRolls, players, campaign, send }) {
       {/* Player roll request form */}
       {showRequestForm && (
         <div className={styles.cutsceneFormFull}>
-          <div className={styles.sectionLabel}>Send to players</div>
-          <div className={styles.csPlayerList}>
-            {players.length === 0
-              ? <div className={styles.emptyHint}>No players connected</div>
-              : players.map(p => (
-                <label key={p.deviceId} className={styles.csPlayerCheck}>
-                  <input type="checkbox"
-                    checked={selectedPlayers.has(p.deviceId)}
-                    onChange={() => togglePlayer(p.deviceId)} />
-                  <span className={styles.csPlayerName}>{p.name}</span>
-                  {(campaign?.actors?.[p.characterId] || p.character)?.name && (
-                    <span className={styles.csPlayerChar}>
-                      {(campaign?.actors?.[p.characterId] || p.character).name}
-                    </span>
-                  )}
-                </label>
-              ))
-            }
+          <div className={styles.sectionLabel}>Die</div>
+          <div className={styles.csTypeRow}>
+            {Object.keys(DICE_TYPES).map(die => (
+              <button
+                key={die}
+                className={`${styles.csTypeBtn} ${requestDiceType === die ? styles.csTypeBtnActive : ''}`}
+                onClick={() => setRequestDiceType(die)}
+              >
+                {die.toUpperCase()}
+              </button>
+            ))}
           </div>
+
           <div className={styles.sectionLabel} style={{ marginTop: 4 }}>Description — optional</div>
           <input
             type="text"
@@ -398,7 +546,24 @@ function DiceSection({ diceRolls, players, campaign, send }) {
             value={requestDescription}
             onChange={e => setRequestDescription(e.target.value)}
           />
-          <div className={styles.sectionLabel} style={{ marginTop: 4 }}>Threshold (DC) — optional</div>
+
+          {rollableStats.length > 0 && (<>
+            <div className={styles.sectionLabel} style={{ marginTop: 4 }}>Stat Bonus — optional</div>
+            <div className={styles.csTypeRow} style={{ flexWrap: 'wrap', gap: 3 }}>
+              {rollableStats.map(stat => (
+                <button
+                  key={stat.id}
+                  className={`${styles.csTypeBtn} ${requestStatId === stat.id ? styles.csTypeBtnActive : ''}`}
+                  style={{ flex: 'none', padding: '4px 7px' }}
+                  onClick={() => setRequestStatId(prev => prev === stat.id ? null : stat.id)}
+                >
+                  {stat.short || stat.label}
+                </button>
+              ))}
+            </div>
+          </>)}
+
+          <div className={styles.sectionLabel} style={{ marginTop: 4 }}>DC — optional</div>
           <input
             type="number"
             min={1} max={30}
@@ -406,8 +571,42 @@ function DiceSection({ diceRolls, players, campaign, send }) {
             value={threshold}
             onChange={e => setThreshold(e.target.value)}
           />
+
+          <div className={styles.sectionLabel} style={{ marginTop: 4 }}>Send to</div>
+          {players.length === 0
+            ? <div className={styles.emptyHint}>No players connected</div>
+            : (<>
+              <div className={styles.csPlayerPills}>
+                {players.map(p => {
+                  const charName = (campaign?.actors?.[p.characterId] || p.character)?.name
+                  const active = selectedPlayers.has(p.deviceId)
+                  return (
+                    <button
+                      key={p.deviceId}
+                      className={`${styles.csPlayerPill} ${active ? styles.csPlayerPillActive : ''}`}
+                      onClick={() => togglePlayer(p.deviceId)}
+                    >
+                      <span className={styles.csPlayerPillName}>{p.name}</span>
+                      {charName && <span className={styles.csPlayerPillChar}>{charName}</span>}
+                    </button>
+                  )
+                })}
+              </div>
+              {players.length > 1 && (
+                <button className={styles.csSelectAllBtn} onClick={toggleAllPlayers}>
+                  {selectedPlayers.size === players.length ? 'Deselect all' : 'Select all'}
+                </button>
+              )}
+            </>)
+          }
+
           <div className={styles.actionRow}>
-            <button className={styles.cancelBtn} onClick={() => { setShowRequestForm(false); setSelectedPlayers(new Set()) }}>Cancel</button>
+            <button className={styles.cancelBtn} onClick={() => {
+              setShowRequestForm(false)
+              setSelectedPlayers(new Set())
+              setRequestStatId(null)
+              setRequestDiceType('d20')
+            }}>Cancel</button>
             <button className={styles.primaryBtn} onClick={handleSendRequest} disabled={selectedPlayers.size === 0} style={{ flex: 1 }}>
               🎲 Send to {selectedPlayers.size || 0} player{selectedPlayers.size !== 1 ? 's' : ''}
             </button>

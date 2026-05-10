@@ -868,6 +868,7 @@ input, select, textarea, button { font-family: inherit; }
 .rollRequestDesc { font-size: 15px; font-weight: 600; color: var(--text-primary); }
 .rollRequestChar { font-size: 13px; color: var(--text-muted); }
 .rollRequestDice { font-size: 36px; font-weight: 900; color: var(--accent); letter-spacing: 0.05em; }
+.rollRequestStat { font-size: 12px; color: var(--accent); opacity: 0.85; }
 .rollRequestDC { font-size: 13px; color: var(--text-secondary); padding: 6px 14px; background: rgba(200,169,110,0.1); border-radius: 8px; }
 .rollBigBtn { padding: 14px 32px; border-radius: 10px; background: var(--accent); color: #1a1a1a; font-size: 16px; font-weight: 700; border: none; cursor: pointer; width: 100%; transition: opacity 0.12s; }
 .rollBigBtn:hover { opacity: 0.88; }
@@ -876,5 +877,6 @@ input, select, textarea, button { font-family: inherit; }
 /* Roll result toast */
 .rollResultToast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); z-index: 400; background: var(--bg-surface); border: 2px solid var(--border-strong); border-radius: 12px; padding: 14px 24px; display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; min-width: 120px; text-align: center; box-shadow: 0 8px 32px rgba(0,0,0,0.5); }
 .rollResultValue { font-size: 40px; font-weight: 900; line-height: 1; }
+.rollResultBreakdown { font-size: 11px; color: var(--text-muted); }
 .rollResultLabel { font-size: 12px; color: var(--text-secondary); font-weight: 500; }
 .modeChip { font-size: 11px; padding: 3px 10px; border-radius: 10px; }

@@ -5,6 +5,7 @@ import { hexToPixel, hexCorners, gridBounds, HEX_SIZE, squareToPixel, squareCorn
 import { getTileType } from './utils/biomes'
 import { loadImage } from './utils/imageStorage'
 import { useImage } from './utils/useImage'
+import { QRCodeSVG } from 'qrcode.react'
 import './styles/global.css'
 import styles from './DisplayApp.module.css'
 
@@ -19,6 +20,16 @@ export default function DisplayApp() {
   const [storyboard, setStoryboard] = useState(null)
   const [tileBgOverlay, setTileBgOverlay] = useState(null) // { q, r, mapId }
   const [diceRolls, setDiceRolls] = useState([])
+  const [joinScreenVisible, setJoinScreenVisible] = useState(false)
+  const [playerUrl, setPlayerUrl] = useState(null)
+
+  // Fetch the player URL once on mount so the QR code has it
+  useEffect(() => {
+    fetch('/api/server-info')
+      .then(r => r.json())
+      .then(data => setPlayerUrl(`http://${data.ip}:${data.port}`))
+      .catch(() => {})
+  }, [])
 
   const { send, wsRef } = useGameSocket(useCallback((msg) => {
     switch (msg.type) {
@@ -60,12 +71,16 @@ export default function DisplayApp() {
       case 'DICE_LOG_STATE':
         setDiceRolls(msg.rolls || [])
         break
+      case 'JOIN_SCREEN_STATE':
+        setJoinScreenVisible(msg.visible)
+        break
       case 'SESSION_ENDED':
         setMode('idle')
         setSession(null)
         setCampaign(null)
         setTileBgOverlay(null)
         setDiceRolls([])
+        setJoinScreenVisible(false)
         break
     }
   }, []))
@@ -86,25 +101,19 @@ export default function DisplayApp() {
   const activeMapId = session?.activeMapId || campaign?.activeMapId
   const activeMap = campaign?.maps?.[activeMapId]
 
+  const showJoinScreen = mode === 'idle' || mode === 'connecting' || joinScreenVisible
+
   return (
     <div className={styles.display} style={{ background: '#0a0a0c', width: '100vw', height: '100vh' }}>
 
-      {/* Idle / connecting */}
-      {(mode === 'idle' || mode === 'connecting') && (
+      {/* Connecting spinner (brief, before JOIN_DISPLAY completes) */}
+      {mode === 'connecting' && !showJoinScreen && (
         <div style={{
           width: '100%', height: '100%',
-          display: 'flex', flexDirection: 'column',
-          alignItems: 'center', justifyContent: 'center',
-          gap: 16, color: 'rgba(255,255,255,0.4)',
-          fontFamily: 'sans-serif',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          color: 'rgba(255,255,255,0.3)', fontSize: 14,
         }}>
-          <div style={{ fontSize: 80 }}>⬡</div>
-          <div style={{ fontSize: 28, fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase' }}>
-            TileStories Display
-          </div>
-          <div style={{ fontSize: 14 }}>
-            {mode === 'connecting' ? 'Connecting to session…' : 'Waiting for organizer to start a session'}
-          </div>
+          Connecting…
         </div>
       )}
 
@@ -125,6 +134,16 @@ export default function DisplayApp() {
         </div>
       )}
 
+      {/* Join screen — shown when idle or when organizer explicitly enables it */}
+      {showJoinScreen && (
+        <JoinScreen
+          campaign={campaign}
+          session={session}
+          playerUrl={playerUrl}
+          isConnecting={mode === 'connecting'}
+        />
+      )}
+
       {/* Tile background overlay — sits on top of everything, click to dismiss */}
       {tileBgOverlay && (
         <TileBgOverlay
@@ -135,13 +154,85 @@ export default function DisplayApp() {
       )}
 
       {/* Dice roll log — bottom-left floating panel */}
-      {diceRolls.length > 0 && (
+      {diceRolls.length > 0 && !showJoinScreen && (
         <DiceRollPanel rolls={diceRolls} />
       )}
     </div>
   )
 }
 
+
+// ── Join screen ───────────────────────────────────────────────
+function JoinScreen({ campaign, session, playerUrl, isConnecting }) {
+  const bgSrc = useImage(campaign?.joinScreenBg)
+  const players = session ? Object.values(session.players || {}) : []
+
+  return (
+    <div className={styles.joinScreen}>
+      {/* Background image */}
+      {bgSrc && (
+        <img
+          src={bgSrc}
+          alt=""
+          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', zIndex: 0 }}
+        />
+      )}
+      {/* Dark gradient overlay */}
+      <div style={{
+        position: 'absolute', inset: 0, zIndex: 1,
+        background: bgSrc
+          ? 'linear-gradient(to bottom, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.75) 100%)'
+          : 'linear-gradient(160deg, #0d0f12 0%, #111418 100%)',
+      }} />
+
+      {/* Content */}
+      <div className={styles.joinContent}>
+        {/* Campaign name */}
+        <div className={styles.joinCampaignName}>
+          {campaign?.name || 'TileStories'}
+        </div>
+
+        {/* QR code + URL block */}
+        {playerUrl && !isConnecting ? (
+          <div className={styles.joinQrBlock}>
+            <div className={styles.joinQrWrap}>
+              <QRCodeSVG
+                value={playerUrl}
+                size={220}
+                bgColor="transparent"
+                fgColor="#ffffff"
+                level="M"
+              />
+            </div>
+            <div className={styles.joinScanLabel}>Scan to join</div>
+            <div className={styles.joinUrl}>{playerUrl}</div>
+          </div>
+        ) : (
+          <div className={styles.joinConnecting}>
+            {isConnecting ? 'Connecting to session…' : 'Starting up…'}
+          </div>
+        )}
+
+        {/* Connected players */}
+        {players.length > 0 && (
+          <div className={styles.joinPlayers}>
+            <div className={styles.joinPlayersLabel}>
+              {players.length} player{players.length !== 1 ? 's' : ''} joined
+            </div>
+            <div className={styles.joinPlayersList}>
+              {players.map(p => (
+                <div key={p.deviceId} className={styles.joinPlayerChip}>
+                  <span>{p.character?.emoji || '👤'}</span>
+                  <span>{p.name}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
 
 // ── Dice roll panel ────────────────────────────────────────────
 function DiceRollPanel({ rolls }) {
@@ -183,7 +274,7 @@ function DiceRollPanel({ rolls }) {
               color: isSuccess ? '#7bc47f' : isFail ? '#c25a4a' : '#fff',
               flexShrink: 0,
             }}>
-              {roll.value}
+              {roll.total ?? roll.value}
             </div>
             {/* Label */}
             <div>
@@ -193,6 +284,11 @@ function DiceRollPanel({ rolls }) {
               {roll.description && (
                 <div style={{ fontSize: isBig ? 11 : 9, color: 'rgba(255,255,255,0.65)', fontStyle: 'italic', marginTop: 1 }}>
                   {roll.description}
+                </div>
+              )}
+              {roll.bonus != null && (
+                <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.5)', marginTop: 1 }}>
+                  {roll.value} + {roll.statLabel || 'bonus'} ({roll.bonus >= 0 ? '+' : ''}{roll.bonus})
                 </div>
               )}
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>

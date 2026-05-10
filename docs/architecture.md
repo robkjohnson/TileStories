@@ -30,6 +30,7 @@ Organizer (Zustand) ──── WebSocket ──── Server (in-memory sessio
 
 ```
 TileStories/
+├── start.bat              # Windows double-click launcher (runs npm start)
 ├── server.js              # Express + WebSocket server (port 3001)
 ├── index.html             # Organizer app HTML shell
 ├── display.html           # Display app HTML shell
@@ -115,8 +116,14 @@ Messages are JSON objects with a `type` field. Key flows:
 | Server → Player | `CAMPAIGN_UPDATED` | Sanitized campaign broadcast |
 | Org → Server | `SHOW_STORYBOARD` | Pushes storyboard to Display screen |
 | Org → Server | `SHOW_STORYBOARD_TO_PLAYER` | Pushes storyboard to specific player |
-| Player → Server | `DICE_ROLL` | Player submits a dice roll result |
-| Server → All | `DICE_ROLL_BROADCAST` | Server re-broadcasts dice roll to all connected clients |
+| Org → Server | `DICE_ROLL` | Organizer rolls dice (for an NPC, environment, etc.) |
+| Org → Server | `SEND_ROLL_REQUEST` | Asks specific players to roll; carries die type, DC, and optional stat ID |
+| Player → Server | `PLAYER_DICE_ROLL` | Player submits a roll result; includes stat bonus if a stat was requested |
+| Server → All | `DICE_ROLL_BROADCAST` | Broadcasts any completed roll to organizer, all players, and display |
+| Server → Player | `ROLL_REQUEST` | Delivers a roll request to the targeted player device |
+| Server → Player | `DICE_ROLL_RESULT` | Returns the player's own roll result with success/fail flag |
+| Org → Server | `SET_JOIN_SCREEN` | Shows or hides the join screen on the display (`visible: bool`) |
+| Server → Display | `JOIN_SCREEN_STATE` | Delivers current join screen visibility to the display |
 
 ## Campaign Sanitization
 

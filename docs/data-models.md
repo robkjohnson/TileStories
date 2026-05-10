@@ -33,6 +33,7 @@ All campaign data lives in a single JSON document exported as `.tilestories.json
   containers:  { [id]: Container }
   storyboards: { [id]: Storyboard }
   story:       { [id]: StoryEntry }
+  joinScreenBg: string | null     // base64 background image for the display join screen
   attachments: Attachment[]
   coverImage:  string | null      // base64
   createdAt:   ISO string

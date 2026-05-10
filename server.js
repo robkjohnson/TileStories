@@ -29,6 +29,7 @@ app.use(express.static(path.join(__dirname, 'player-dist')))
 let session = null          // null = no active session
 let campaign = null         // full campaign object from organizer
 let diceRolls = []          // ephemeral roll log, max 20 entries
+let joinScreenVisible = false  // whether the join screen is shown on the display
 let connectedClients = new Map()  // socketId → { ws, role, playerId, characterId, deviceId }
 
 function makeSession(campaignData) {
@@ -224,6 +225,7 @@ wss.on('connection', (ws) => {
         session = null
         campaign = null
         diceRolls = []
+        joinScreenVisible = false
         broadcast({ type: 'SESSION_ENDED' })
         console.log('[SESSION] Ended')
         break
@@ -232,15 +234,21 @@ wss.on('connection', (ws) => {
       // ── Dice rolls ────────────────────────────────────────────
       case 'DICE_ROLL': {
         if (client.role !== 'organizer') break
+        const orgBonus = msg.bonus != null ? msg.bonus : null
+        const orgTotal = orgBonus != null ? msg.value + orgBonus : msg.value
         const roll = {
           id: Math.random().toString(36).slice(2, 9),
           characterId: msg.characterId || null,
           characterName: msg.characterName || 'Unknown',
           diceType: msg.diceType || 'd20',
           value: msg.value,
+          bonus: orgBonus,
+          total: orgBonus != null ? orgTotal : null,
+          statId: msg.statId || null,
+          statLabel: msg.statLabel || null,
           description: msg.description || null,
           threshold: msg.threshold || null,
-          success: msg.threshold ? msg.value >= msg.threshold : null,
+          success: msg.threshold ? orgTotal >= msg.threshold : null,
           rolledBy: 'organizer',
           rolledAt: new Date().toISOString(),
         }
@@ -253,15 +261,20 @@ wss.on('connection', (ws) => {
       case 'PLAYER_DICE_ROLL': {
         if (client.role !== 'player' || !session) break
         const threshold = msg.threshold || null
+        const playerTotal = msg.total != null ? msg.total : msg.value
         const roll = {
           id: Math.random().toString(36).slice(2, 9),
           characterId: msg.characterId || null,
           characterName: msg.characterName || client.name || 'Unknown',
           diceType: msg.diceType || 'd20',
           value: msg.value,
+          bonus: msg.bonus != null ? msg.bonus : null,
+          total: msg.total != null ? msg.total : null,
+          statId: msg.statId || null,
+          statLabel: msg.statLabel || null,
           description: msg.description || null,
           threshold,
-          success: threshold ? msg.value >= threshold : null,
+          success: threshold ? playerTotal >= threshold : null,
           rolledBy: 'player',
           rolledAt: new Date().toISOString(),
         }
@@ -289,6 +302,7 @@ wss.on('connection', (ws) => {
                 diceType: msg.diceType || 'd20',
                 threshold: msg.threshold || null,
                 description: msg.description || null,
+                statId: msg.statId || null,
               }))
             }
           })
@@ -300,6 +314,17 @@ wss.on('connection', (ws) => {
         if (client.role !== 'organizer') break
         diceRolls = []
         broadcast({ type: 'DICE_LOG_CLEARED' })
+        break
+      }
+
+      case 'SET_JOIN_SCREEN': {
+        if (client.role !== 'organizer') break
+        joinScreenVisible = !!msg.visible
+        connectedClients.forEach(c => {
+          if (c.role === 'display' && c.ws.readyState === WebSocket.OPEN) {
+            c.ws.send(JSON.stringify({ type: 'JOIN_SCREEN_STATE', visible: joinScreenVisible }))
+          }
+        })
         break
       }
 
@@ -926,6 +951,7 @@ wss.on('connection', (ws) => {
         if (diceRolls.length > 0) {
           sendTo(socketId, { type: 'DICE_LOG_STATE', rolls: diceRolls })
         }
+        sendTo(socketId, { type: 'JOIN_SCREEN_STATE', visible: joinScreenVisible })
         break
       }
 

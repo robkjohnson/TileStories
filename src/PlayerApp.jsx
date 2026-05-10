@@ -9,6 +9,7 @@ import { getAllAnnotationsForMap, PIN_COLORS, setAnnotation, clearAnnotation } f
 import { loadImage } from './utils/imageStorage'
 import { useImage } from './utils/useImage'
 import { rollDice } from './utils/dice'
+import { getCampaignSystem } from './systems/index'
 import { StatusPill } from './components/EffectSystem/StatusLibrary'
 import { rotateAoePattern } from './store/useStore'
 import styles from './PlayerApp.module.css'
@@ -88,11 +89,19 @@ export default function PlayerApp() {
           diceType: msg.diceType || 'd20',
           characterName: msg.characterName || null,
           description: msg.description || null,
+          statId: msg.statId || null,
         })
         break
 
       case 'DICE_ROLL_RESULT':
-        setDiceResult({ value: msg.roll.value, success: msg.roll.success, threshold: msg.roll.threshold })
+        setDiceResult({
+          value: msg.roll.value,
+          total: msg.roll.total,
+          bonus: msg.roll.bonus,
+          statLabel: msg.roll.statLabel,
+          success: msg.roll.success,
+          threshold: msg.roll.threshold,
+        })
         clearTimeout(diceResultTimer.current)
         diceResultTimer.current = setTimeout(() => setDiceResult(null), 4000)
         break
@@ -157,15 +166,32 @@ export default function PlayerApp() {
     send({ type: 'REQUEST_MOVE', tileKey })
   }
 
-  function handlePlayerRoll(diceType = 'd20', threshold = null, requestId = null, description = null) {
+  function handlePlayerRoll(diceType = 'd20', threshold = null, requestId = null, description = null, statId = null) {
     const value = rollDice(diceType)
     const myChar = (character?.id && campaign?.actors?.[character.id]) || character
+
+    let bonus = null
+    let statLabel = null
+    if (statId && myChar?.stats?.[statId] != null) {
+      const sys = getCampaignSystem(campaign)
+      const statDef = sys?.stats?.find(s => s.id === statId)
+      if (statDef) {
+        const rawVal = Number(myChar.stats[statId]) || 0
+        bonus = statDef.type === 'attribute' ? Math.floor((rawVal - 10) / 2) : rawVal
+        statLabel = statDef.short || statDef.label
+      }
+    }
+
     send({
       type: 'PLAYER_DICE_ROLL',
       characterId: myChar?.id || null,
       characterName: myChar?.name || 'Unknown',
       diceType,
       value,
+      bonus,
+      total: bonus != null ? value + bonus : null,
+      statId,
+      statLabel,
       threshold,
       description,
       requestId,
@@ -446,7 +472,7 @@ export default function PlayerApp() {
         {rollRequest && (
           <RollRequestBanner
             request={rollRequest}
-            onRoll={() => handlePlayerRoll(rollRequest.diceType, rollRequest.threshold, rollRequest.requestId, rollRequest.description)}
+            onRoll={() => handlePlayerRoll(rollRequest.diceType, rollRequest.threshold, rollRequest.requestId, rollRequest.description, rollRequest.statId)}
             onDismiss={() => setRollRequest(null)}
           />
         )}
@@ -1788,6 +1814,9 @@ function RollRequestBanner({ request, onRoll, onDismiss }) {
           <div className={styles.rollRequestChar}>For: {request.characterName}</div>
         )}
         <div className={styles.rollRequestDice}>{request.diceType?.toUpperCase() || 'D20'}</div>
+        {request.statId && (
+          <div className={styles.rollRequestStat}>+ {request.statId.toUpperCase()} bonus added automatically</div>
+        )}
         {request.threshold != null && (
           <div className={styles.rollRequestDC}>DC {request.threshold} — need {request.threshold} or higher</div>
         )}
@@ -1804,6 +1833,7 @@ function RollRequestBanner({ request, onRoll, onDismiss }) {
 function RollResultToast({ result, onDismiss }) {
   const isSuccess = result.success === true
   const isFail = result.success === false
+  const displayVal = result.total ?? result.value
   return (
     <div
       className={styles.rollResultToast}
@@ -1812,8 +1842,13 @@ function RollResultToast({ result, onDismiss }) {
     >
       <div className={styles.rollResultValue}
         style={{ color: isSuccess ? '#7bc47f' : isFail ? '#c25a4a' : 'var(--text-primary)' }}>
-        {result.value}
+        {displayVal}
       </div>
+      {result.bonus != null && (
+        <div className={styles.rollResultBreakdown}>
+          {result.value} + {result.statLabel || 'bonus'} ({result.bonus >= 0 ? '+' : ''}{result.bonus})
+        </div>
+      )}
       <div className={styles.rollResultLabel}>
         {result.threshold != null
           ? `DC ${result.threshold} — ${isSuccess ? '✓ Success!' : '✗ Fail'}`

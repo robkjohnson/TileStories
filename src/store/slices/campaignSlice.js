@@ -147,6 +147,12 @@ function migrateGameSystem(campaign) {
   return { ...campaign, gameSystemId: 'dnd5e' }
 }
 
+/** add joinScreenBg if missing */
+function migrateJoinScreen(campaign) {
+  if (campaign.joinScreenBg !== undefined) return campaign
+  return { ...campaign, joinScreenBg: null }
+}
+
 // Run all migrations in sequence. Safe to call on any schema version.
 export function migrateCampaign(campaign) {
   if (!campaign) return campaign
@@ -155,6 +161,7 @@ export function migrateCampaign(campaign) {
   c = migrateEffectSystem(c)
   c = migrateToActors(c)
   c = migrateGameSystem(c)
+  c = migrateJoinScreen(c)
   return c
 }
 

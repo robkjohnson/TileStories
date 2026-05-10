@@ -65,6 +65,9 @@ export function makeCampaign(gameSystemId = 'dnd5e', overrides = {}) {
     storyboards: {},
     story: {},
 
+    // ── Session join screen ───────────────────────────────────────
+    joinScreenBg: null,   // base64 background image for the display join screen
+
     // ── Campaign-level attachments ────────────────────────────────
     attachments: [],
     coverImage: null,   // base64 cover art
