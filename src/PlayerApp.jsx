@@ -1252,11 +1252,25 @@ function PlayerCharacterView({ character, campaign, localCharacter, send, onRoll
             ))}
           </div>
           {/* Currency wallet */}
-          <div className={styles.walletRow}>
-            <span className={styles.walletIcon}>$</span>
-            <span className={styles.walletAmount}>{(character.currency ?? 0).toLocaleString()}</span>
-            <span className={styles.walletLabel}>currency</span>
-          </div>
+          {(() => {
+            const sys = getCampaignSystem(campaign)
+            const currencies = sys?.currencies || []
+            const wallet = character.currency || {}
+            const entries = currencies.filter(c => wallet[c.id])
+            if (entries.length === 0 && currencies.length > 0) {
+              entries.push(...currencies)
+            }
+            return (
+              <div className={styles.walletRow}>
+                {entries.map(c => (
+                  <div key={c.id} className={styles.walletEntry}>
+                    <span className={styles.walletAmount}>{(wallet[c.id] ?? 0).toLocaleString()}</span>
+                    <span className={styles.walletLabel}>{c.shortLabel}</span>
+                  </div>
+                ))}
+              </div>
+            )
+          })()}
           {character.description && (
             <div className={styles.charDesc}>{character.description}</div>
           )}

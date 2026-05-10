@@ -63,10 +63,20 @@ export default function useGameSocket(onMessage) {
     return () => {
       mountedRef.current = false
       if (reconnectTimer.current) { clearTimeout(reconnectTimer.current); reconnectTimer.current = null }
-      if (wsRef.current) {
-        wsRef.current.onclose = null  // prevent reconnect on intentional close
-        wsRef.current.close()
-        wsRef.current = null
+      const ws = wsRef.current
+      wsRef.current = null
+      if (ws) {
+        ws.onopen = null
+        ws.onmessage = null
+        ws.onerror = null
+        ws.onclose = null
+        if (ws.readyState === WebSocket.CONNECTING) {
+          // Closing a CONNECTING socket triggers a browser warning. Wait for
+          // it to open then immediately close — avoids the noise in StrictMode.
+          ws.addEventListener('open', () => ws.close())
+        } else {
+          ws.close()
+        }
       }
     }
   }, []) // eslint-disable-line

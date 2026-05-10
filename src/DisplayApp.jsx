@@ -23,12 +23,14 @@ export default function DisplayApp() {
   const [joinScreenVisible, setJoinScreenVisible] = useState(false)
   const [playerUrl, setPlayerUrl] = useState(null)
 
-  // Fetch the player URL once on mount so the QR code has it
+  // Fetch the player URL once on mount so the QR code has it.
+  // Must target port 3001 explicitly — in dev the display is served by Vite on :5173.
   useEffect(() => {
-    fetch('/api/server-info')
+    const base = `http://${window.location.hostname}:3001`
+    fetch(`${base}/api/server-info`)
       .then(r => r.json())
       .then(data => setPlayerUrl(`http://${data.ip}:${data.port}`))
-      .catch(() => {})
+      .catch(() => setPlayerUrl(base))
   }, [])
 
   const { send, wsRef } = useGameSocket(useCallback((msg) => {
@@ -50,6 +52,9 @@ export default function DisplayApp() {
         setStoryboard(msg.storyboard)
         setMode('storyboard')
         setTileBgOverlay(null)
+        break
+      case 'MAP_CHANGED':
+        setSession(s => s ? { ...s, activeMapId: msg.mapId } : s)
         break
       case 'DISPLAY_MAP':
         setMode('map')
@@ -199,8 +204,8 @@ function JoinScreen({ campaign, session, playerUrl, isConnecting }) {
               <QRCodeSVG
                 value={playerUrl}
                 size={220}
-                bgColor="transparent"
-                fgColor="#ffffff"
+                bgColor="#ffffff"
+                fgColor="#000000"
                 level="M"
               />
             </div>

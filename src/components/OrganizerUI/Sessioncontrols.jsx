@@ -34,70 +34,10 @@ export default function SessionControls() {
 
   return (
     <>
-      {/* Connection + URL */}
-      <div className={styles.section}>
-        <div className={styles.statusRow}>
-          <span className={`${styles.dot} ${connected ? styles.dotGreen : styles.dotGray}`} />
-          <span className={styles.statusText}>{connected ? 'Server online' : 'Connecting…'}</span>
-        </div>
-        {playerUrl && (
-          <div className={styles.urlBox}>
-            <div className={styles.urlLabel}>Players join at:</div>
-            <div className={styles.urlValue}>{playerUrl}</div>
-            <button className={styles.copyBtn} onClick={() => navigator.clipboard.writeText(playerUrl)}>Copy</button>
-          </div>
-        )}
-      </div>
-
-      {/* No session */}
-      {!session && (
-        <div className={styles.section}>
-          <button className={styles.primaryBtn}
-            onClick={() => campaign && send({ type: 'HOST_SESSION', campaign })}
-            disabled={!campaign || !connected}>
-            ⚡ Start session
-          </button>
-        </div>
-      )}
-
-      {/* Lobby */}
-      {session?.status === 'lobby' && (
-        <div className={styles.section}>
-          <div className={styles.sectionLabel}>Lobby — {players.length} player{players.length !== 1 ? 's' : ''}</div>
-          {players.map(p => (
-            <div key={p.deviceId} className={styles.playerRow}>
-              <span className={styles.playerName}>{p.name}</span>
-              <span className={styles.playerChar}>{p.character?.name || '—'}</span>
-              {p.ready && <span className={styles.readyDot}>✓</span>}
-            </div>
-          ))}
-          <button className={styles.displayBtn}
-            onClick={() => window.open('/display.html', 'tilestories-display', 'width=1280,height=720,menubar=no,toolbar=no')}>
-            📺 Open Display
-          </button>
-          <div className={styles.actionRow}>
-            <button className={styles.dangerBtn} onClick={() => send({ type: 'END_SESSION' })}>End</button>
-            <button className={styles.primaryBtn}
-              onClick={() => send({ type: 'START_GAME' })}>▶ Begin</button>
-          </div>
-        </div>
-      )}
-
-      {/* Join screen settings — visible when there's a session (lobby or active) */}
-      {session && (
-        <JoinScreenSection
-          campaign={campaign}
-          updateCampaign={updateCampaign}
-          playerUrl={playerUrl}
-          joinScreenOn={joinScreenOn}
-          setJoinScreenOn={setJoinScreenOn}
-          send={send}
-        />
-      )}
-
-      {/* Active / paused */}
+      {/* ── Active / Paused ───────────────────────────────────────── */}
       {(session?.status === 'active' || session?.status === 'paused') && (<>
 
+        {/* 1. Status + Pause / End */}
         <div className={styles.section}>
           <div className={styles.statusRow}>
             <span className={`${styles.dot} ${isPaused ? styles.dotAmber : styles.dotGreen}`} />
@@ -109,7 +49,7 @@ export default function SessionControls() {
           </div>
         </div>
 
-        {/* Players */}
+        {/* 2. Players */}
         <div className={styles.section}>
           <div className={styles.sectionLabel}>Players ({players.length})</div>
           {players.map(p => {
@@ -126,12 +66,14 @@ export default function SessionControls() {
           })}
         </div>
 
-        {/* Turn tracker */}
-        <TurnTracker />
-
-        {/* Map switcher */}
+        {/* 3. Display screen — includes map switcher and display controls */}
         <div className={styles.section}>
-          <div className={styles.sectionLabel}>Player map</div>
+          <div className={styles.sectionLabel}>Display screen</div>
+          <button className={styles.displayBtn}
+            onClick={() => window.open('/display.html', 'tilestories-display', 'width=1280,height=720,menubar=no,toolbar=no')}>
+            📺 Open Display
+          </button>
+          <div className={styles.sectionLabel} style={{ marginTop: 6 }}>Player map</div>
           <div className={styles.mapBtns}>
             {maps.map(m => (
               <button key={m.id}
@@ -139,9 +81,37 @@ export default function SessionControls() {
                 onClick={() => send({ type: 'CHANGE_MAP', mapId: m.id })}>{m.name}</button>
             ))}
           </div>
+          <div className={styles.actionRow} style={{ marginTop: 4 }}>
+            <button className={styles.actionBtn} onClick={() => send({ type: 'SHOW_DISPLAY_MAP' })}>
+              🗺 Show map
+            </button>
+            <button
+              className={`${styles.actionBtn} ${joinScreenOn ? styles.actionBtnActive : ''}`}
+              onClick={() => {
+                const next = !joinScreenOn
+                setJoinScreenOn(next)
+                send({ type: 'SET_JOIN_SCREEN', visible: next })
+              }}>
+              🔗 Join screen
+            </button>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
+            <span style={{ fontSize: 11, color: 'var(--text-secondary)', flex: 1 }}>Label size</span>
+            <input type="range" min={0.5} max={2} step={0.1}
+              value={displayLabelSize}
+              onChange={e => setDisplayLabelSize(parseFloat(e.target.value))}
+              style={{ width: 72, accentColor: 'var(--accent)' }} />
+            <span style={{ fontSize: 10, color: 'var(--text-muted)', minWidth: 28, textAlign: 'right' }}>{displayLabelSize.toFixed(1)}×</span>
+          </div>
         </div>
 
-        {/* Cutscene */}
+        {/* 4. Turn type + turn order */}
+        <TurnTracker />
+
+        {/* 5. Dice rolls */}
+        <DiceSection diceRolls={diceRolls} players={players} campaign={campaign} send={send} />
+
+        {/* 6. Cutscene / Dialog */}
         <div className={styles.section}>
           <div className={styles.sectionLabel}>Cutscene / Dialog</div>
           {session.cutscene ? (
@@ -168,46 +138,71 @@ export default function SessionControls() {
           )}
         </div>
 
-        {/* Display control */}
+        {/* Music placeholder */}
         <div className={styles.section}>
-          <div className={styles.sectionLabel}>Display screen</div>
+          <div className={styles.sectionLabel}>Music & Sound <span className={styles.soon}>coming soon</span></div>
+        </div>
+
+      </>)}
+
+      {/* ── Lobby ────────────────────────────────────────────────── */}
+      {session?.status === 'lobby' && (
+        <div className={styles.section}>
+          <div className={styles.sectionLabel}>Lobby — {players.length} player{players.length !== 1 ? 's' : ''}</div>
+          {players.map(p => (
+            <div key={p.deviceId} className={styles.playerRow}>
+              <span className={styles.playerName}>{p.name}</span>
+              <span className={styles.playerChar}>{p.character?.name || '—'}</span>
+              {p.ready && <span className={styles.readyDot}>✓</span>}
+            </div>
+          ))}
           <button className={styles.displayBtn}
             onClick={() => window.open('/display.html', 'tilestories-display', 'width=1280,height=720,menubar=no,toolbar=no')}>
             📺 Open Display
           </button>
           <div className={styles.actionRow}>
-            <button className={styles.actionBtn}
-              onClick={() => send({ type: 'SHOW_DISPLAY_MAP' })}>
-              🗺 Show map
-            </button>
-            <button
-              className={`${styles.actionBtn} ${joinScreenOn ? styles.actionBtnActive : ''}`}
-              onClick={() => {
-                const next = !joinScreenOn
-                setJoinScreenOn(next)
-                send({ type: 'SET_JOIN_SCREEN', visible: next })
-              }}>
-              🔗 Join screen
-            </button>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
-            <span style={{ fontSize: 11, color: 'var(--text-secondary)', flex: 1 }}>Label size</span>
-            <input type="range" min={0.5} max={2} step={0.1}
-              value={displayLabelSize}
-              onChange={e => setDisplayLabelSize(parseFloat(e.target.value))}
-              style={{ width: 72, accentColor: 'var(--accent)' }} />
-            <span style={{ fontSize: 10, color: 'var(--text-muted)', minWidth: 28, textAlign: 'right' }}>{displayLabelSize.toFixed(1)}×</span>
+            <button className={styles.dangerBtn} onClick={() => send({ type: 'END_SESSION' })}>End</button>
+            <button className={styles.primaryBtn} onClick={() => send({ type: 'START_GAME' })}>▶ Begin</button>
           </div>
         </div>
+      )}
 
-        {/* Dice */}
-        <DiceSection diceRolls={diceRolls} players={players} campaign={campaign} send={send} />
-
-        {/* Music placeholder */}
+      {/* ── No session ───────────────────────────────────────────── */}
+      {!session && (
         <div className={styles.section}>
-          <div className={styles.sectionLabel}>Music & Sound <span className={styles.soon}>coming soon</span></div>
+          <button className={styles.primaryBtn}
+            onClick={() => campaign && send({ type: 'HOST_SESSION', campaign })}
+            disabled={!campaign || !connected}>
+            ⚡ Start session
+          </button>
         </div>
-      </>)}
+      )}
+
+      {/* ── Bottom: Server status + Join screen ──────────────────── */}
+      <div className={styles.section}>
+        <div className={styles.statusRow}>
+          <span className={`${styles.dot} ${connected ? styles.dotGreen : styles.dotGray}`} />
+          <span className={styles.statusText}>{connected ? 'Server online' : 'Connecting…'}</span>
+        </div>
+        {playerUrl && (
+          <div className={styles.urlBox}>
+            <div className={styles.urlLabel}>Players join at:</div>
+            <div className={styles.urlValue}>{playerUrl}</div>
+            <button className={styles.copyBtn} onClick={() => navigator.clipboard.writeText(playerUrl)}>Copy</button>
+          </div>
+        )}
+      </div>
+
+      {session && (
+        <JoinScreenSection
+          campaign={campaign}
+          updateCampaign={updateCampaign}
+          playerUrl={playerUrl}
+          joinScreenOn={joinScreenOn}
+          setJoinScreenOn={setJoinScreenOn}
+          send={send}
+        />
+      )}
     </>
   )
 }
@@ -249,7 +244,7 @@ function JoinScreenSection({ campaign, updateCampaign, playerUrl, joinScreenOn, 
       {playerUrl && (
         <div className={styles.joinPreviewBlock}>
           <div className={styles.joinPreviewQr}>
-            <QRCodeSVG value={playerUrl} size={72} bgColor="transparent" fgColor="var(--text-primary)" level="M" />
+            <QRCodeSVG value={playerUrl} size={72} bgColor="#ffffff" fgColor="#000000" level="M" />
           </div>
           <div className={styles.joinPreviewInfo}>
             <div className={styles.joinPreviewUrl}>{playerUrl}</div>
